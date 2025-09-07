@@ -59,10 +59,10 @@ custom_metric = SampleLevelMetric(
 ################################################################################
 
 task = LightevalTaskConfig(
-    name="example",
+    name="exam_questions",
     prompt_function=prompt_fn,
     suite=["community"],
-    hf_repo="burtenshaw/exam_questions",
+    hf_repo="micwill755/exam-questions-evaluation",
     hf_subset="default",
     hf_avail_splits=["train"],
     evaluation_splits=["train"],
@@ -79,8 +79,9 @@ if __name__ == "__main__":
     print([t.name for t in TASKS_TABLE])
     print(len(TASKS_TABLE))
 
+# Usage:
 # lighteval accelerate \
-# "pretrained=HuggingFaceTB/SmolLM2-135M-Instruct" \
-# "community|example|0|0" \
-# --custom-tasks "submitted_tasks/example.py" \
-# --output-dir "results"
+# "pretrained=HuggingFaceH4/zephyr-7b-beta" \
+# "community|exam_questions|0|0" \
+# --custom-tasks evaluation_task.py \
+# --output-dir "./evals"

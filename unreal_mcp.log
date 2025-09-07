@@ -1,0 +1,33 @@
+2025-08-27 23:12:57,331 - mcp.server.lowlevel.server - DEBUG - [server.py:153] - Initializing server 'unreal-mcp-server'
+2025-08-27 23:12:57,331 - mcp.server.lowlevel.server - DEBUG - [server.py:385] - Registering handler for ListToolsRequest
+2025-08-27 23:12:57,331 - mcp.server.lowlevel.server - DEBUG - [server.py:446] - Registering handler for CallToolRequest
+2025-08-27 23:12:57,331 - mcp.server.lowlevel.server - DEBUG - [server.py:262] - Registering handler for ListResourcesRequest
+2025-08-27 23:12:57,331 - mcp.server.lowlevel.server - DEBUG - [server.py:290] - Registering handler for ReadResourceRequest
+2025-08-27 23:12:57,331 - mcp.server.lowlevel.server - DEBUG - [server.py:234] - Registering handler for PromptListRequest
+2025-08-27 23:12:57,331 - mcp.server.lowlevel.server - DEBUG - [server.py:249] - Registering handler for GetPromptRequest
+2025-08-27 23:12:57,331 - mcp.server.lowlevel.server - DEBUG - [server.py:275] - Registering handler for ListResourceTemplatesRequest
+2025-08-27 23:12:57,334 - mcp.server.lowlevel.server - DEBUG - [server.py:153] - Initializing server 'unreal-mcp-server'
+2025-08-27 23:12:57,334 - mcp.server.lowlevel.server - DEBUG - [server.py:385] - Registering handler for ListToolsRequest
+2025-08-27 23:12:57,334 - mcp.server.lowlevel.server - DEBUG - [server.py:446] - Registering handler for CallToolRequest
+2025-08-27 23:12:57,334 - mcp.server.lowlevel.server - DEBUG - [server.py:262] - Registering handler for ListResourcesRequest
+2025-08-27 23:12:57,334 - mcp.server.lowlevel.server - DEBUG - [server.py:290] - Registering handler for ReadResourceRequest
+2025-08-27 23:12:57,334 - mcp.server.lowlevel.server - DEBUG - [server.py:234] - Registering handler for PromptListRequest
+2025-08-27 23:12:57,334 - mcp.server.lowlevel.server - DEBUG - [server.py:249] - Registering handler for GetPromptRequest
+2025-08-27 23:12:57,334 - mcp.server.lowlevel.server - DEBUG - [server.py:275] - Registering handler for ListResourceTemplatesRequest
+2025-08-27 23:12:57,342 - unreal-mcp-server - INFO - [editor_tools.py:305] - Editor tools registered successfully
+2025-08-27 23:12:57,344 - unreal-mcp-server - INFO - [project_tools.py:98] - Project tools registered successfully
+2025-08-27 23:12:57,347 - unreal-mcp-server - INFO - [blueprint_tools.py:185] - Blueprint tools registered successfully
+2025-08-27 23:12:57,350 - unreal-mcp-server - INFO - [node_tools.py:246] - Node tools registered successfully
+2025-08-27 23:12:57,355 - unreal-mcp-server - INFO - [umg_tools.py:256] - UMG tools registered successfully
+2025-08-27 23:12:57,357 - asyncio - DEBUG - [selector_events.py:64] - Using selector: KqueueSelector
+2025-08-27 23:12:57,358 - unreal-mcp-server - INFO - [server.py:204] - Starting Unreal MCP Server
+2025-08-27 23:12:57,360 - mcp.server.lowlevel.server - DEBUG - [server.py:587] - Received message: root=InitializedNotification(method='notifications/initialized', params=None, jsonrpc='2.0')
+2025-08-27 23:12:57,360 - mcp.server.lowlevel.server - DEBUG - [server.py:587] - Received message: <mcp.shared.session.RequestResponder object at 0x1134bb9d0>
+2025-08-27 23:12:57,360 - mcp.server.lowlevel.server - INFO - [server.py:624] - Processing request of type ListPromptsRequest
+2025-08-27 23:12:57,360 - mcp.server.lowlevel.server - DEBUG - [server.py:626] - Dispatching request of type ListPromptsRequest
+2025-08-27 23:12:57,360 - mcp.server.lowlevel.server - DEBUG - [server.py:673] - Response sent
+2025-08-27 23:12:57,360 - mcp.server.lowlevel.server - DEBUG - [server.py:587] - Received message: <mcp.shared.session.RequestResponder object at 0x1134bb890>
+2025-08-27 23:12:57,360 - mcp.server.lowlevel.server - INFO - [server.py:624] - Processing request of type ListToolsRequest
+2025-08-27 23:12:57,360 - mcp.server.lowlevel.server - DEBUG - [server.py:626] - Dispatching request of type ListToolsRequest
+2025-08-27 23:12:57,361 - mcp.server.lowlevel.server - DEBUG - [server.py:673] - Response sent
+2025-08-28 15:58:20,046 - unreal-mcp-server - INFO - [server.py:206] - Shutting down Unreal MCP Server

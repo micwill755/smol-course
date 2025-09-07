@@ -1,0 +1,1165 @@
+HellaSwag: Can a Machine Really Finish Your Sentence?
+RowanZellers♠ AriHoltzman♠ YonatanBisk♠ AliFarhadi♠♥ YejinChoi♠♥
+♠PaulG.AllenSchoolofComputerScience&Engineering,UniversityofWashington
+♥AllenInstituteforArtificialIntelligence
+https://rowanzellers.com/hellaswag
+Abstract A woman is outside with a bucket and a dog. The dog is running
+around trying to avoid a bath. She…
+A.rinses the bucket off with soap and blow dry the dog’s head.
+Recent work by Zellers et al. (2018) intro- B.uses a hose to keep it from getting soapy.
++
+C.gets the dog wet, then it runs away again.
+ducedanewtaskofcommonsensenaturallan- Adversarial D.gets into a bath tub with the dog.
+Filtering
+guage inference: given an event description
+Come to a complete halt at a stop sign or red light. At a stop sign,
+suchas“Awomansitsatapiano,”amachine come to a complete halt for about 2 seconds or until vehicles that
+arrived before you clear the intersection. If you're stopped at a red
+must select the most likely followup: “She How to light, proceed when the light has turned green. … determine
+sets her fingers on the keys.” With the intro- who has right A.Stop for no more than two seconds, or until the light turns
+duction of BERT (Devlin et al., 2018), near of way. y s e to ll p o . w. A red light in front of you indicates that you should
+human-level performance was reached. Does + B.After you come to a complete stop, turn off your turn signal.
+Adversarial Allow vehicles to move in different directions before moving this mean that machines can perform human Filtering onto the sidewalk.
+levelcommonsenseinference? C.Stay out of the oncoming traffic. People coming in from
+behind may elect to stay left or right.
+In this paper, we show that commonsense in- D.If the intersection has a white stripe in your lane, stop
+before this line. Wait until all traffic has cleared before
+ference still proves difficult for even state- crossing the intersection.
+of-the-art models, by presenting HellaSwag, easy! ???
+a new challenge dataset. Though its ques- OpenAI
+GPT
+tionsaretrivialforhumans(ą95%accuracy),
+state-of-the-art models struggle (ă48%). We
+Figure1: ModelslikeBERTstruggletofinishthesen-
+achieve this via Adversarial Filtering (AF), a
+tences in HellaSwag, even when they come from the
+data collection paradigm wherein a series of
+samedistributionasthetrainingset. Whilethewrong
+discriminatorsiterativelyselectanadversarial
+endingsareon-topic,withwordsthatrelatetothecon-
+setofmachine-generatedwronganswers. AF
+text, humans consistently judge their meanings to be
+proves to be surprisingly robust. The key in-
+eitherincorrectorimplausible. Forexample,optionA
+sight is to scale up the length and complex-
+of the WikiHow passage suggests that a driver should
+ity of the dataset examples towards a critical
+stopataredlightfornomorethantwoseconds.
+‘Goldilocks’ zone wherein generated text is
+ridiculous to humans, yet often misclassified
+bystate-of-the-artmodels.
+plausible next event is option C—that she’ll get
+Our construction of HellaSwag, and its result- thedogwetanditwillrunawayagain.
+ing difficulty, sheds light on the inner work-
+When the SWAG dataset was first announced
+ingsofdeeppretrainedmodels. Morebroadly,
+(Zellers et al., 2018), this new task of common-
+it suggests a new path forward for NLP re-
+sense natural language inference seemed trivial
+search, in which benchmarks co-evolve with
+for humans (88%) and yet challenging for then-
+the evolving state-of-the-art in an adversarial
+way,soastopresentever-harderchallenges. state-of-the-art models (ă60%), including ELMo
+(Peters et al., 2018). However, BERT (Devlin
+1 Introduction et al., 2018) soon reached over 86%, almost
+human-level performance. One news article on
+Imagine a woman chasing a dog around outside,
+this development was headlined “finally, a ma-
+trying to give it a bath. What might happen next?
+chinethatcanfinishyoursentence.”1
+Humans can read a narrative like this, shown in
+Inthispaper,weinvestigatethefollowingques-
+Figure 1, and connect it to a rich model of the
+tion: How well do deep pretrained models, like
+world: thedogiscurrentlydryandnotsoapy,and
+it actively doesn’t want to be bathed. Thus, one 1ANewYorkTimesarticleathttps://nyti.ms/2DycutY.
+1
+9102
+yaM
+91
+]LC.sc[
+1v03870.5091:viXra
+BERT,performatcommonsensenaturallanguage
+Context 1
+inference (NLI)? Our surprising conclusion is
+that the underlying task remains unsolved. In- Context 2
+deed, we find that deep models such as BERT do
+notdemonstraterobustcommonsensereasonining
+Context
+ability by themselves. Instead, they operate more N
+likerapidsurfacelearnersforaparticulardataset.
+Their strong performance on SWAG is dependent
+on the finetuning process, wherein they largely
+learn to pick up on dataset-specific distributional
+biases. When the distribution of language shifts
+slightly, performance drops drastically – even if
+thedomainremainsidentical.
+We study this question by introducing Hella-
+Swag,2 a new benchmark for commonsense
+NLI. We use Adversarial Filtering (AF), a data-
+collection paradigm in which a series of discrim-
+inators is used to select a challenging set of gen-
+erated wrong answers. AF is surprisingly effec-
+tivetowardsthisgoal: theresultingdatasetof70k
+problems is easy for humans (95.6% accuracy),
+yetchallengingformachines(ă50%q. Thisresult
+holds even when models are given a significant
+number of training examples, and even when the
+test data comes from the exact same distribution
+as the training data. Machine performance slips
+anadditional5%whenevaluatedonexamplesthat
+covernovelconceptsfromthesamedomain.
+To make this dataset robust to deep pre-
+trained models, we use a trifecta of state-of-the-
+art generators (Radford et al., 2018), state-of-
+the-art discriminators (BERT), and high quality
+source text. We expand on the SWAG’s origi-
+nal video-captioning domain by using WikiHow
+articles, greatly increasing the context diversity
+and generation length. Our investigation reveals
+a Goldilocks zone – roughly three sentences of
+context, and two generated sentences – wherein
+generations are largely nonsensical, even though
+state-of-the-art discriminators cannot reliably tell
+the difference between these generations and the
+groundtruth.
+More broadly, our paper presents a case-study
+towardsafutureofverifiedprogressinNLP,viait-
+erativeroundsofbuildingandbreakingdatasets. If
+ourultimategoalistoprovidereliablebenchmarks
+for challenging tasks, such as commonsense NLI,
+these benchmarks cannot be static. Instead, they
+must evolve together with the evolving state-of-
+2Short for Harder Endings, Longer contexts, and Low-
+shot Activities for Situations With Adversarial Generations.
+Datasetandcodeathttps://rowanzellers.com/hellaswag.
+…
+Context 1
+Context M
+…
+Real ending
+…
+Real ending
+)secnatsni
+N(
+niart
+)secnatsni
+M(
+D
+Real
+ending
+…
+Real Gen’d ending ending K
+Real Gen’d ending ending K
+Gen’d
+ending K
+…
+…
+Gen’d ending2
+…
+…
+…
+…
+Gen’d ending2
+Gen’d Gen’d
+ending 1 ending2
+…
+Gen’d ending 1
+Gen’d ending 1
+tset
+D
+Gen’d ending2
+…
+Gen’d ending 1
+… … …
+Train f
+to discriminate
+real vs. generated
+f
+… Gen’d Gen’d ending 1 ending K
+…
+Replace
+Gen’d Gen’d ending 2 ending K easily-classified
+generations with
+New! New! adversarial ones
+Generated Generated that currently
+Ending Ending aren’t included
+(context M) (context 2)
+Figure 2: An overview of Adversarial Filtering. On
+each iteration, a new classifier is trained on a dummy
+training set D to replace easily-classified negative
+train
+endings on the dummy test set D with adversarial
+test
+endings. Thisprocessisrepeatediteratively, toobtain
+achallengingdatasetregardlessofthefinalsplit.
+the-art. Continuedevolutioninturnrequiresprin-
+cipled dataset creation algorithms. Whenever a
+new iteration of a dataset is created, these algo-
+rithms must leverage existing modeling advance-
+mentstofilteroutspuriousbiases. Onlyoncethis
+cyclebecomesimpossiblecanwesaythattheun-
+derlyingtask –asopposedanindividualdataset–
+issolved.
+2 Background
+SWAG is a dataset for commonsense NLI. For
+each question, a model is given a context from a
+video caption and four ending choices for what
+mighthappennext. Onlyonechoiceisright–the
+actualnextcaptionofthevideo.
+Obtaining interesting negatives is challenging.
+Prior work (e.g. Gururangan et al., 2018; Poliak
+etal.,2018)hasfoundthatwhenhumanswritethe
+endings to NLI questions, they introduce subtle
+yet strong class-conditional biases known as an-
+notationartifacts.3
+To address this, Zellers et al. (2018) intro-
+duced Adversarial Filtering (AF). An overview
+is shown in Figure 2. The key idea is to produce
+a dataset D which is adversarial for any arbitrary
+split of pD , D q. This requires a generator
+train test
+ofnegativecandidates(i.e.,wrongendingsthatvi-
+3Thesebiasessimplyinflatemodelperformance,butpast
+workhasalsoshownthatareunwantedsocialbiasesinduced
+whenhumanswritetheendings,intermsofgenderandrace
+(Rudingeretal.,2015).
+2
+100
+75
+50
+25
+16 64 256 1024 4096 16384 65536
+Training examples
+)%(
+ycaruccA
+1GAWS
+100
+Human BERTLarge ESIM+ELMo
+90
+80
+70
+60
+50
+40
+30
+Default Ending Only Shuffled Shuffled+
+Ending Only
+Figure 3: Validation accuracy on SWAG for BERT-
+Largeversustrainingsetsize. Thebaseline(25%accu-
+racy)israndomchance. BERTdoeswellgivenasfew
+as16trainingexamples,butrequirestensofthousands
+ofexamplestoapproachhumanperformance.
+olatehumannotionsabouthowtheworldworks),
+whichweachievebyusingalanguagemodel. Po-
+tential candidates of incorrect answers were mas-
+sivelyoversampledfromalanguagemodeltrained
+on in-domain data, and then selected using an en-
+sembleofadversaries. Theselectionprocesshap-
+pens iteratively: on each iteration, the dataset is
+randomly partitioned into D and D . The
+train test
+ensemble is trained to classify endings as real or
+generated on D , then, AF replaces easy-to- train
+classify generations in D . This process con- test
+tinuesuntiltheaccuracyoftheseadversariescon-
+verges. Last, humans validate the data to remove
+adversarialendingsthatseemrealistic.
+Importantly, AF creates a final dataset that
+is challenging to models regardless of the final
+dataset split. In Section 4, we will use AF as the
+underlyingworkhorsetoconstructanNLIdataset
+that is easy for humans, yet challenging for ma-
+chines. This difficulty persists even when mod-
+elsareprovidedsignificanttrainingdata,andeven
+when this data comes from the same distribution
+as the test set. This contrasts with past work on
+adversarial examples (e.g. Jia and Liang, 2017;
+Glockner et al., 2018; Belinkov and Bisk, 2018)
+whichconsidercaseswhereanout-of-distribution
+testsetisconstructedtobeadversarial.
+3 InvestigatingSWAG
+In this section, we investigate why SWAG was
+solved. We focus on BERT, since it is the best
+)%(
+ycaruccA
+egraL-TREB
+SWAG
+HellaSwag
+86.7%
+77.0%
+74.8%
+60.4%
+46.7%
+41.4%
+36.2%
+31.6%
+Figure4: BERTvalidationaccuracywhentrainedand
+evaluated under several versions of SWAG, with the
+newdatasetHellaSwagascomparison. Wecompare:
+Ending Only Nocontextisprovided;justtheendings.
+Shuffled Endings that are indidivually tokenized,
+shuffled,andthendetokenized.
+Shuffled+ Nocontextisprovidedandeachendingis
+Ending Only shuffled.
+known approach at the time of writing.4 Core to
+our analysis is investigating how a model trained
+onWikipediaandbookscanbesoeffectivelyfine-
+tunedforSWAG,adatasetfromvideocaptions.
+3.1 HowmuchinnateknowledgedoesBERT
+haveaboutSWAG?
+WeinvestigatethisquestionbymeasuringBERT’s
+performance on SWAG while varying the size of
+the training dataset; results are shown in Fig-
+ure 3. While the best known ELMo NLI model
+(ESIM+ELMo;Chenetal.,2017)requirestheen-
+tire training set to reach 59%, BERT outperforms
+thisgivenonly64examples. However,BERTstill
+needs upwards of 16k examples to approach hu-
+manperformance,aroundwhichitplateaus.
+3.2 Whatislearnedduringfinetuning?
+Figure 4 compares BERT’s performance when
+trainedandevaluatedonvariantsofSWAG.
+Context: BERT’s performance only slips 11.9
+points (86.7%Ñ74.8%) when context is omitted
+(Ending Only), suggesting a bias exists in the
+endings themselves.5 If a followup event seems
+unreasonableabsentofcontext,thentheremustbe
+something markedly different between the space
+ofhuman-writtenandmachine-generatedendings.
+Structure: To distinguish word usage from
+4SeetheappendixforadiscussionoftheBERTarchitec-
+tureandhyperparametersettingsweusedinourexperiments.
+5These biases are similar to those in NLI datasets, as
+foundbyGururanganetal.(2018);Poliaketal.(2018).
+3
+100
+75
+50
+25
+0
+0 10 20 30 40 50
+Activitynet Adversarial Filtering iteration
+)yaw-4(
+ycarucca
+TREB
+100
+75
+50
+25
+Zellers' LM GPT
+0
+0 10 20 30 40
+Wikihow Adversarial Filtering iteration
+)yaw-4(
+ycarucca
+TREB
+1 sentence
+2 sentences
+3 sentences
+Figure5:AdversarialFiltering(AF)resultswithBERT-Largeasthediscriminator.Left:AFappliedtoActivityNet
+generations produced by Zellers et al. (2018)’s language model versus OpenAI GPT. While GPT converges at
+random,theLMusedforSWAGconvergesat75%. Right: AFappliedtoWikiHowgenerationsfromGPT,while
+varyingtheendinglengthfromonetothreesentences. Theyconvergetorandom,„40%,and„50%,respectively.
+structural patterns, we consider a new scenario, Toinvestigatethis,weperformAFusingBERT-
+Shuffled. Here the shared context is provided, Large as the discriminator7 in two settings, com-
+butthewordsineachendingchoicearerandomly paring generations from Zellers et al. (2018) with
+permuted. Surprisingly,thisreducesBERTperfor- thosefromafinetunedGPT(Radfordetal.,2018).
+mancebylessthan10%. EventhoughBERTwas Strikingly,theresults,Figure5(left),showthat
+never exposed to randomly shuffled text during the generations used in SWAG are so different
+pretraining, it easily adapts to this setting, which from the human-written endings that AF never
+suggests that BERT is largely performing lexical dropstheaccuracytochance;instead,itconverges
+reasoningovereach(context,answer)pair. toroughly75%. Ontheotherhand,GPT’sgener-
+Finally, when the context is removed and the ationsaregoodenoughthatBERTaccuracydrops
+words in each ending are shuffled, performance below 30% over many random subsplits of the
+drops to 60.4%. While low, this is still higher data,revealingtheimportanceofthegenerator.
+than ELMo’s performance (ă60% from Zellers
+et al., 2018). As neither context nor structure 4 HellaSwag
+is needed to discriminate between human and
+The success of BERT implies that high-quality
+machine-written endings in a majority of cases, it
+generators and discriminators are crucial to AF’s
+islikelythatsystemsprimarilylearntodetectdis-
+success. However, it does not imply that the un-
+tributionalstylisticpatternsduringfinetuning.
+derlying task of commonsense NLI – as opposed
+to a single dataset – is solved. To evaluate this
+3.3 Wheredothestylisticbiasescomefrom?
+claim requires us to try making a new evolution
+SWAG was constructed via Adversarial Filter-
+of the SWAG dataset, one in which artifacts are
+ing (AF). Endings were generated via a language
+removed. In this section, we do just that by intro-
+model, and then selected to fool a discrimina-
+ducingHellaSwag.
+tor. To understand why it was solved requires
+understanding the interplay of AF with respect to 4.1 ActivityNetCaptions
+SWAG’sgeneratorsanddiscriminators.
+We start by including video captions from the
+Zellersetal.(2018)usedatwo-layerLSTMfor
+ActivityNet Captions dataset (Krishna et al.,
+generation, with shallow stylistic adversarial fil-
+2017). TheoriginalSWAGdatasetcontainsthese,
+ters.6 This setup was robust against ELMo mod-
+along with captions from LSMDC (Rohrbach
+els,buthastheshallowLMinparticularproduced
+et al., 2017), but for HellaSwag we solely used
+distributionalartifactsthatBERTpicksupon?
+7Oneachiteration,BERT-Largeisre-initializedfromits
+6The discriminator was an ensemble that featured a bag pretrained checkpoint, finetuned, and then evaluated in a
+ofwordsmodel,ashallowCNN,amultilayerperceptronop- four-waysettingonthedummytestsetofheld-outdata. See
+eratingonlanguagemodelperplexities. SuppAforadetailsofourBERT-LargeAFsetup.
+4
+ActivityNet. In addition to temporal descriptions,
+100
+ActivityNet also provides activity labels for each
+caption (e.g. jumping rope). We will use these
+activitylabelsasadditionalstructuretotestgener-
+75
+alizationability.
+4.2 WikiHow: ANewTestbed
+50
+We next consider a new and challenging testbed
+for commonsense reasoning: completing how-to
+articles from WikiHow, an online how-to manual. 25
+0 1 2
+We scrape 80k context and follow-up paragraphs
+from WikiHow, covering such diverse topics as
+“howtomakeanorigamiowl”to“howtosurvive
+a bank robbery.” Each context has at most three
+sentences,asdothefollow-ups.
+AF’s effectiveness in this new setting is shown
+in Figure 5 (right). We consider three settings,
+corresponding to endings that are either one, two,
+or three sentences long. In all cases, BERT per-
+formance begins high (70-90%), but there are
+enough generations for Adversarial Filtering to
+lower the final accuracy considerably. While the
+one-sentence case converges to slightly higher
+than random – 35% when it converges – the two
+and three sentence cases are higher, at 40% and
+50%respectively. Givenmorecontext,itbecomes
+easiertoclassifyanendingasmachine-orhuman-
+written. We compromise and use two-sentence
+generations. Particularlyinthetwo-sentencecase,
+we find ourselves in a Goldilocks zone wherein
+generations are challenging for deep models, yet
+asweshallsoonsee,easyforhumans.
+4.3 Obtaininghighhumanagreement
+How well can humans distinguish human-written
+endings from machine generations refined with
+Adversarial Filtering? In Figure 6, we com-
+pare human performance with that of BERT on
+a random 80%/20% split. We see a contrast
+between the ActivityNet and WikiHow perfor-
+mance. While ActivityNet starts off harder for
+BERT(25.5%),italsoprovesdifficultforhumans
+(60%). In contrast, WikiHow starts easier for
+BERT (41.1%) and humans find the domain al-
+most trivial (93.5%). We hypothesis this discrep-
+ancy is due to the lengths of both datasets (Fig-
+ure7). WikiHow’s2-sentencegenerationsaverage
+41 tokens, versus 13 for ActivityNet. This gives
+WikiHow generations three times as many oppor-
+tunitiestomakeadetectablemistake.
+To ensure high agreement on ActivityNet, we
+perform several rounds of human filtering, in-
+)%(
+ycaruccA
+ActivityNet WikiHow
+94.0 93.5 95.5 96.5
+85.0
+60.0 Human
+57.1
+BERT
+48.4
+45.4 46.0
+41.1
+25.5
+0 1 2
+Number of annotators during validation
+Figure6: ForHellaSwag,weensurehighhumanagree-
+mentthroughseveralroundsofannotation. Bycollect-
+inghowlikelyeachendingiswecanfilterfalsenega-
+tiveendings–machinegenerationsthatsoundrealistic
+– and replace them with true negatives. On both sub-
+datasets, BERT performance increases during valida-
+tion,butthegaptohumanperformanceremainswide.
+0.08 Context lengths for... Ending lengths for...
+0.06 ActivityNet ActivityNet
+WikiHow (2sent) WikiHow (2sent)
+0.04
+0.02
+0 20 40 60 80 100 0 20 40 60 80 100
+Length (# WordPiece tokens) Length (# WordPiece tokens)
+Figure 7: Lengths of ActivityNet and WikiHow; the
+latter with two-sentence generations. WikiHow is
+muchlonger,whichcorrespondstobeingeasierforhu-
+mans,whiletakinglongerforAFtoconverge.
+creasing human performance to 94%. During hu-
+manvalidation,crowdworkersaregivenacontext
+and six ending choices, of which one is the true
+ending, and the other five are from AF. On each
+iteration,wereplacemachine-writtenendingsthat
+theworkerratedasrealisticwithnewsamples. In
+theend,wekeepthe25kbestActivityNetcontexts
+(i.e. thosewithhighestagreementamongworkers
+8)andthe45kbestWikiHowcontexts.
+4.4 Zero-shotcategoriesforevaluation
+To evaluate a model’s ability to generalize to new
+situations, we use category labels from WikiHow
+and ActivityNet to make ‘zero-shot’ evaluation
+sets. Foreachset(validationortest),wecrafttwo
+subsets: one containing 5k ‘in-domain’ examples
+that come from categories as seen during training
+(Figure8),andanotherwith5k‘zero-shot’exam-
+plesfromrandomlychosenheld-outcategories. In
+total,thereare70kdatasetexamples.
+8Seetheappendixfordetailsabouthowweestimatethis.
+5
+Overall In-Domain Zero-Shot ActivityNet WikiHow
+Model Val Test Val Test Val Test Val Test Val Test
+SplitSizeÑ 10K 10K 5K 5K 5K 5K 3.2K 3.5K 6.8K 6.5K
+Chance 25.0
+fastText 30.9 31.6 33.8 32.9 28.0 30.2 27.7 28.4 32.4 33.3
+LSTM+GloVe 31.9 31.7 34.3 32.9 29.5 30.4 34.3 33.8 30.7 30.5
+LSTM+ELMo 31.7 31.4 33.2 32.8 30.4 30.0 33.8 33.3 30.8 30.4
+LSTM+BERT-Base 35.9 36.2 38.7 38.2 33.2 34.1 40.5 40.5 33.7 33.8
+ESIM+ELMo 33.6 33.3 35.7 34.2 31.5 32.3 37.7 36.6 31.6 31.5
+OpenAIGPT 41.9 41.7 45.3 44.0 38.6 39.3 46.4 43.8 39.8 40.5
+BERT-Base 39.5 40.5 42.9 42.8 36.1 38.3 48.9 45.7 34.9 37.7
+BERT-Large 46.7 47.3 50.2 49.7 43.3 45.0 54.7 51.7 42.9 45.0
+Human 95.7 95.6 95.6 95.6 95.8 95.7 94.0 94.0 96.5 96.5
+Table1: Performanceofmodels,evaluatedwithaccuracy(%).Wereportresultsonthefullvalidationandtestsets
+(Overall),aswellasresultsoninformativesubsetsofthedata:evaluatedonin-domain,versuszero-shotsituations,
+alongwithperformanceontheunderlyingdatasources(ActivityNetversusWikiHow). Allmodelssubstantially
+underperformhumans: thegapisover45%onin-domaincategories,and50%onzero-shotcategories.
+isnowafour-waysoftmaxoverendings.
+d. LSTM sentence encoder: This is a randomly
+initialized two-layer bi-LSTM; the second layer’s
+hiddenstatesaremax-pooledandfedintoanMLP
+to predict the logit. We consider three varia-
+tions: GloVe embeddings, ELMo embeddings, or
+(frozen)BERT-Baseembeddings.9
+e. FastText: (Joulinetal.,2017)Anoff-the-shelf
+libraryforbag-of-wordstextclassification.10
+We compare all models to human performance
+byaskingfiveindependentcrowdworkerstosolve
+thesamefour-waymultiplechoiceproblems;their
+predictionsarecombinedviamajorityvote.
+Figure8: Examplesonthein-domainvalidationsetof
+Our results, shown in Table 1, hint at the diffi-
+HellaSwag, groupedbycategorylabel. Ourevaluation
+setup equally weights performance on categories seen culty of the dataset: human performance is over
+duringtrainingaswellasout-of-domain. 95%, while overall model performance is below
+50%foreverymodel. Surprisingly,despiteBERT-
+Large having been used as the adversarial filter,
+5 Results
+it still performs the strongest at 47.3% overall.
+By making the dataset adversarial for BERT, it
+WeevaluatethedifficultyofHellaSwagusingava-
+seems to also have become adversarial for every
+riety of strong baselines, with and without mas-
+other model. For instance, while ESIM+ELMo
+sive pretraining. The models share the same for-
+obtained 59% accuracy on SWAG, it obtains only
+mat: given a context and an ending, return a logit
+33.3%accuracyonHellaSwag.
+forthatending. Accordingly,wetrainourmodels
+Inadditiontopretrainingbeingcritical,sotoois
+usingafour-waycross-entropyloss,wheretheob-
+end-to-end finetuning. Freezing BERT-Base and
+jectiveistopredictthecorrectending. Inaddition
+adding an LSTM on top lowers its overall perfor-
+toBERT-Large,ourcomparisonsinclude:
+mance 4.3%. This may help explain why mod-
+a. OpenAI GPT (Radford et al., 2018): A fine-
+els such as ESIM+ELMo struggled on SWAG, as
+tuned12-layertransformerthatwaspre-trainedon
+ELMoisn’tupdatedduringfinetuning.
+theBookCorpus(Zhuetal.,2015).
+WhileBERTisthebestmodel,itstillstruggles
+b. Bert-Base: A smaller version of the BERT
+modelwhosearchitecturesizematchesGPT.
+on HellaSwag, and especially so on zero-shot cat-
+c. ESIM+ELMo(Chenetal.,2017;Petersetal.,
+9For ELMo and BERT-Base, the model learns scalar
+2018): This is the best-performing ELMo model
+weightstocombineeachinternallayeroftheencoder.
+forNLI,modifiedslightlysothefinaloutputlayer 10Thismodelistrainedwithbinarycrossentropyloss.
+6
+100
+90
+80
+70
+60
+50 40
+30
+Overall LSMDC ActivityNet
+)%(
+ycaruccA
+egraL-TREB
+Evaluated on SWAG Evaluated on HellaSwag Category:Shaving(ActivityNet;In-domain)
+Abeardedmanisseenspeakingtothecameraandmakingseveral
+Trained on... faces.theman
+86.7% 85.5% 88.0% SWAG HellaSwag a)thenswitchesoffandshowshimselfviathewasheranddryer
+71.4% 69.0% 74.2% rollingdownatowelandscrubbingthefloor.(0.0%)
+b)thenrubsandwipesdownanindividual’sfaceandleadsinto
+anothermanplayinganotherperson’sflute.(0.0%)
+46.4% 42.9% 48.4% 53.7% c d ) ) i t s h t e h n en ho se ld e s n u e p ati a ng ra f z o o o r d a o n n d a b l e a g d i d n e s r s w h h a i v le in s g til h l i s s p f e a a c k e i . n ( g 1 . 0 ( 0 0 . . 0 0 % % ) )
+34.6% Category:Sharpeningknives(ActivityNet;Zero-Shot)
+28.0%
+Overall WikiHow ActivityNet Twomenareinaroomandthemanwithablueshirttakesouta
+benchstoneandwithalittlelubricantonthestonetakesanknifeand
+Figure 9: Transfer experiments from SWAG to Hella- explainshowtosharpenit.thenhe
+Swag and vice versa, evaluated on the validation sets. a) uses a sharpener to smooth out the stone using the knife.
+(100.0%)
+Overall,aBERT-LargethatistrainedonSWAGhardly
+b)showshowtocutthebottomwiththeknifeandplaceatubeon
+generalizestoHellaSwag: itscores34.6%. theinnerandcorner.(0.0%)
+c) bends down and grabs the knife and remove the appliance.
+(0.0%)
+d)stopssharpeningtheknifeandtakesoutsomepiecesofpaper
+egories. Performance drops roughly 5% on the toshowhowsharptheknifeisashecutssliversofpaperwith
+theknife.(0.0%)
+testfold, which suggeststhatthe finetuningis not
+Category:Youth(WikiHow;In-Domain)
+enough for BERT to learn to generalize to novel Howtomakeupagoodexcuseforyourhomeworknotbeingfinished
+activitiesorhow-tocategories. Blame technology. One of the easiest and most believable ex-
+Last,weseethatWikiHowisamuchharderdo- cuses is simply blaming technology. You can say your computer
+crashed,yourprinterbroke,yourinternetwasdown,oranynumberof
+main that ActivityNet for machines: 45% Bert- problems.
+Large performance, versus 96.5% for humans. a) Your excuses will hardly seem believable. [substeps] This
+doesn’tmeanyouarelying,justonlythatyoudon’thaveallthe
+Curiously, it is on this source dataset that we see detailsofhowyourcomputerranatthetimeoftheaccident.(0.0%)
+b)Thesimplestonetohaveinaclassroomistoblameyouentire
+thesmallestgapbetweenOpenAIGPTandBERT.
+classroom,notjustlab. Ifyoucanthinkofyourselfasthevictim,
+Infact,OpenAIGPToutperformsBERTonWiki- whynotblameitontechnology.(9.4%)
+c)Mostpeople,yourteacherincluded,haveexperiencedset-
+How, but the reverse is true for ActivityNet. One backsduetotechnologicalproblems.[substeps]Thisisagreat
+excuseifyouhadapaperyouneededtotypeandprint.(29.1%)
+possibilityisthattheleft-to-rightstructureofGPT
+d)Itmayalsobemorebelievableifyouarefullyawarethatyoumay
+is the right inductive bias for WikiHow - perhaps beflyingathighspeedonaplaneandneedsomeonetogiveyou
+trafficreport.Yourproblemmightbeyourlaptopfailingtocharge
+reasoningbidirectionallyoverlongcontextsistoo afteralongflight.(61.5%)
+muchfora12-layertransformertolearn. Figure 10: Example questions answered by BERT-
+Large. Correct model predictions are blue, incorrect
+5.1 SWAGtoHellaSwagtransfer
+predictionsarered. Therightanswersarebolded.
+Given the shared goals and partial domains of
+SWAG and HellaSwag, it is natural to ask to
+washardlynecessarytosolveSWAG.
+what extent models can transfer between the two
+datasets. In Figure 9 we show the results from
+5.2 Qualitativeexamples
+transfer experiments: models are trained on one
+datasetandevaluatedontheother.11
+We show several qualitative examples in Fig-
+The best models are trained on the same
+ure 10, along with BERT-Large’s predictions.
+dataset that they are evaluated on: training on
+BERT does well on some ActivityNet contexts,
+SWAG and evaluating on HellaSwag lowers per- such as in the first row, where it correctly pre-
+formance by 12%; vice versa lowers performance dicts the ending for a shaving caption. Whereas
+by15%. ThemissingdomainforHellaSwagmod-
+shaving is in-domain, the second example about
+els is movie descriptions (LSMDC), still, Hella- sharpening knives is zero-shot. In this con-
+Swag models obtain 69% accuracy. On the other text, BERT’s answer suggests that one would use
+hand, SWAG models do not generalize at all to
+a knife to sharpen a stone, rather than vice versa.
+their missing domain, WikiHow (28%), suggest-
+The last example comes from WikiHow, which
+ing that learning general commonsense reasoning
+appears to be incredibly challenging for BERT.
+11Note that the ActivityNet splits are different for each BERTpicksanswerd,whichhasmorewordsthat
+dataset. To avoid skewing the results, we report only on match the context of technology (planes, traffic,
+thevalidationvideocaptionsthatarenotinthetrainingsets laptop),butisincoherent.12
+of either dataset. The overall accuracy is then a weighted
+average, where ActivityNet examples are weighted propor-
+tionatelymore. Thisgivesaslightadvantagetotrainingon 12Among other issues, why would someone suddenly be
+SWAG,asitseesalltheActivityNetcategorieswhentraining. awarethattheyare‘flyingathighspeedonaplane...?’
+7
+100
+90
+80
+70
+60
+50
+40
+30
+Stylistic ELMo+ GPT BERTBase BERTLarge
+Ensemble LSTM
+)%(
+ycaruccA
+10
+Accuracy of the filtering model before AF 10
+Accuracy of the filtering model after AF
+BERT-Large accuracy after AF
+83.0%
+78.5% 77.4% 10 8
+71.3% 71.4%
+64.8% 63.0%
+53.7% 6 10
+48.2%
+41.1%41.1%
+32.0%
+28.0% 28.2% 28.4% 10 4
+Figure11: PerformanceontheWikiHowsubsetofal- 2
+10
+ternative variations of HellaSwag, where different Ad- 30 40 50 60 70 80 90 100
+versarial Filters are used (but without human valida- Overall Accuracy on HellaSwag
+tion). We consider the shallow stylistic adversaries
+used by Zellers et al. (2018) (Stylistic Ensemble),
+as well as an LSTM with ELMo embeddings, GPT,
+BERT-Base,andBERT-Large. Foreachadversarialfil-
+teringmodel,werecordtheaccuracyofthatmodelbe-
+fore and after AF is used. We also evaluate each al-
+ternative dataset using BERT-Large. The results sug-
+gestthatusingaastrongermodelattesttime(overthe
+model used for AF) improves performance, but is not
+enoughtosolvethetask.
+6 Discussion
+OurresultssuggestthatHellaSwagisachallenging
+testbedforstate-of-the-artNLImodels,eventhose
+built on extensive pretraining. The question still
+remains,though,ofwherewillthefieldgonext?
+6.1 HoweasymightHellaSwagbeforfuture
+discriminators?
+In this paper, we showed the existence of a
+Goldilocks zone of text complexity – in which
+generations are nonsensical, but existing state-
+of-the-art NLP models cannot tell the difference.
+Howhardwillthedatasetbeforfuture,evenmore
+powerful,models?
+Answeringthisquestionischallengingbecause
+these models don’t exist (or are unavailable) at
+the time of writing. However, one remedy is to
+perform an ablation study on the Adversarial Fil-
+tering model used, comparing weaker filters with
+stronger discriminators. We present our results
+in Figure 11, and find that while weak discrim-
+inators (like the stylistic ensemble used to make
+SWAG) only marginally reduce the accuracy of
+BERT-Large,increasingthegapbetweenthefilter
+and the final discriminator is not enough to solve
+the task. For instance, using a discriminator with
+3x the parameters as the adversarial filter (BERT-
+Largevs. BERT-Base)resultsin63%machineac-
+curacy.
+)etamitsE(
+sruoH
+gniniarterP
+Human performance?
+BERT-Large BERT-Base
+GPT
+ELMo
+Figure 12: Estimated pretraining hours required to
+reach a desired accuracy on HellaSwag. We estimate
+perfomancewithrespecttoaRTX2080Ti-amodern,
+fast GPU, and fit a log-linear regression line. An ex-
+trapolation suggests that to reach human-level perfor-
+manceonHellaSwag,withoutalgorithmicorcomputa-
+tionalimprovements,wouldrequire109 GPU-hoursof
+pretraining(over100kGPUyears).
+6.2 Howwelldoespretrainingscale?
+Overall, the current paradigm of pretraining large
+modelsonlotsofdatahasmadeimmenseprogress
+on NLP benchmarks. Though we expect this
+trend to continue, it also behooves us to con-
+sider its limits. If more compute is indeed the
+answer for human-level commonsense inference,
+what would the compute requirements of this hy-
+potheticalmassivemodellooklike?
+We investigate this in Figure 12 by compar-
+ing the accuracies of known models on Hella-
+Swagwiththeircomputationalneeds. Thisestima-
+tionisaroughestimate: weconvertreportedTPU
+runtimestoourbenchmarkRTX2080TiGPUus-
+ing the Roofline model (Williams et al., 2009),
+whichfocusesprimarilyonthebottleneckofload-
+ingtensorsintoGPUmemory. Extrapolatingfrom
+an exponential fit suggests that reaching human-
+level performance on our dataset would require
+109 GPU hours, or 100k years – unless algorith-
+micimprovementsaremade.
+What might these algorithmic improvements
+look like? These could include architectural ad-
+vances, better pretraining objectives, and beyond.
+However, these improvements share the bottle-
+neck of the data source. To answer some Hella-
+Swagquestionscorrectlywithoutreasoningdeeply
+– like knowing that it is a bad idea to stop at a
+redlightfor‘atmosttwoseconds’–mightrequire
+an exponential number of samples, due to prob-
+8
+lems of reporting bias (Gordon and Van Durme, the most robust models available – even when
+2013). Alternatively, future models might answer models are evaluated on items from the train-
+correctlyonlybypickinguponspuriouspatterns, ing distribution. In turn, we provided insight
+in which case a new development of the bench- into the inner workings of pretrained models, and
+mark–usingthesemodelsasadversaries–would suggest a path for NLP progress going forward:
+placeusinthesamepositionaswearerightnow. towards benchmarks that adversarially co-evolve
+Put another way, for humans to answer Hella- withevolvingstate-of-the-artmodels.
+Swag questions requires abstracting away from
+Acknowledgments
+language and modeling world states instead. We
+postulate that this is what separates solving the We thank the reviewers, as well as Jesse Thoma-
+task of commonsense NLI, as opposed to a par- son, for their helpful feedback. We thank the
+ticular dataset. Indeed, we find that existing deep Mechanical Turk workers for their great work
+methods often get fooled by lexical false friends. during dataset collection. Thanks also to Zak
+For example, in the WikiHow example from Fig- Stone and the Google Cloud TPU team for help
+ure 10, BERT chooses an ending that matches with the computing infrastructure. This work
+the technology words in the context, rather than wassupportedbytheNationalScienceFoundation
+matchingthedeepertopic: usingtechnologyasan through a Graduate Research Fellowship (DGE-
+excusefornotdoinghomework. 1256082)andNSFgrants(IIS-1524371,1637479,
+165205, 1703166), the DARPA CwC program
+6.3 Towardsafutureofevolvingbenchmarks
+through ARO (W911NF-15-1-0543), the IARPA
+What happens when HellaSwag gets solved? We DIVA program through D17PC00343, the Sloan
+believetheanswerissimple: crowdsourceanother ResearchFoundationthroughaSloanFellowship,
+dataset,withthesameexactformat,andseewhere the Allen Institute for Artificial Intelligence, the
+models fail. Indeed, in our work we found this to NVIDIA Artificial Intelligence Lab, and gifts by
+be straightforward from an algorithmic perspec- Google and Facebook. The views and conclu-
+tive: by throwing in the best known generator sionscontainedhereinarethoseoftheauthorsand
+(GPT) and the best known discriminator (BERT- shouldnotbeinterpretedasrepresentingendorse-
+Large),wemadeadatasetthatisadversarial-not ments of IARPA, DOI/IBC, or the U.S. Govern-
+justtoBERT,buttoallmodelswehaveaccessto. ment.
+While this was easy algorithmically, care must
+be taken from a data curation standpoint. Indeed,
+References
+we find success exists within a Goldilocks zone:
+thedatasourcemustbecomplexenoughthatstate- Yonatan Belinkov and Yonatan Bisk. 2018. Synthetic
+of-the-art generators often make mistakes, while andnaturalnoisebothbreakneuralmachinetransla-
+tion. InICLR.ICLR.
+simple enough such that discriminators often fail
+to catch them. This ties the future of SWAG- QianChen,XiaodanZhu,Zhen-HuaLing,SiWei,Hui
+style benchmarks to progress on language gener- Jiang, and Diana Inkpen. 2017. Enhanced lstm for
+natural language inference. In Proceedings of the
+ation: until generation is solved, commonsense
+55thAnnualMeetingoftheAssociationforCompu-
+NLI will remain unsolved. Even recent promis-
+tational Linguistics (Volume 1: Long Papers), vol-
+ing results on scaling up language models (Rad- ume1,pages1657–1668.
+fordetal.,2019)findproblemsintermsofconsis-
+Jacob Devlin, Ming-Wei Chang, Kenton Lee, and
+tency,withthebestcuratedexamplesrequiring25
+KristinaToutanova.2018. Bert:Pre-trainingofdeep
+randomseeds. bidirectional transformers for language understand-
+ing. arXivpreprintarXiv:1810.04805.
+7 Conclusion
+Max Glockner, Vered Shwartz, and Yoav Goldberg.
+2018. Breaking nli systems with sentences that re-
+In this paper, we presented HellaSwag, a new
+quire simple lexical inferences. In Proceedings of
+dataset for physically situated commonsense rea- the56thAnnualMeetingoftheAssociationforCom-
+soning. By constructing the dataset through ad- putational Linguistics (Volume 2: Short Papers),
+versarial filtering, combined with state-of-the-art pages650–655.
+models for language generation and discrimina-
+JonathanGordonandBenjaminVanDurme.2013. Re-
+tion, we produced a dataset that is adversarial to portingbiasandknowledgeacquisition. InProceed-
+9
+ingsofthe2013workshoponAutomatedknowledge Conference on Lexical and Computational Seman-
+baseconstruction,pages25–30.ACM. tics,pages205–210.
+Suchin Gururangan, Swabha Swayamdipta, Omer Samuel Williams, Andrew Waterman, and David
+Levy, Roy Schwartz, Samuel R. Bowman, and Patterson. 2009. Roofline: An insightful vi-
+Noah A. Smith. 2018. Annotation artifacts in nat- sualperformancemodelforfloating-pointprograms
+urallanguageinferencedata. InProc.ofNAACL. and multicore architectures. Technical report,
+LawrenceBerkeleyNationalLab.(LBNL),Berkeley,
+Ari Holtzman, Jan Buys, Maxwell Forbes, and Yejin CA(UnitedStates).
+Choi.2019. Thecuriouscaseofneuraltextdegen-
+eration. arXivpreprintarXiv:1904.09751. RowanZellers,YonatanBisk,RoySchwartz,andYejin
+Choi.2018. Swag: Alarge-scaleadversarialdataset
+Robin Jia and Percy Liang. 2017. Adversarial exam- for grounded commonsense inference. In Proceed-
+plesforevaluatingreadingcomprehensionsystems. ings of the 2018 Conference on Empirical Methods
+In Proceedings of the 2017 Conference on Empiri- inNaturalLanguageProcessing(EMNLP).
+calMethodsinNaturalLanguageProcessing,pages
+2021–2031. Yukun Zhu, Ryan Kiros, Richard Zemel, Ruslan
+Salakhutdinov, Raquel Urtasun, Antonio Torralba,
+ArmandJoulin,EdouardGrave,PiotrBojanowski,and andSanjaFidler.2015. Aligningbooksandmovies:
+TomasMikolov.2017. Bagoftricksforefficienttext Towards story-like visual explanations by watch-
+classification. In Proceedings of the 15th Confer- ing movies and reading books. In arXiv preprint
+enceoftheEuropeanChapteroftheAssociationfor arXiv:1506.06724.
+ComputationalLinguistics:Volume2,ShortPapers,
+volume2,pages427–431.
+RanjayKrishna, KenjiHata, FredericRen, LiFei-Fei,
+and Juan Carlos Niebles. 2017. Dense-Captioning
+Events in Videos. In International Conference on
+ComputerVision(ICCV).
+Matthew Peters, Mark Neumann, Mohit Iyyer, Matt
+Gardner, Christopher Clark, Kenton Lee, and Luke
+Zettlemoyer.2018. Deepcontextualizedwordrepre-
+sentations. In Proceedings of the 2018 Conference
+of the North American Chapter of the Association
+for Computational Linguistics: Human Language
+Technologies, Volume 1 (Long Papers), volume 1,
+pages2227–2237.
+Adam Poliak, Jason Naradowsky, Aparajita Haldar,
+Rachel Rudinger, and Benjamin Van Durme. 2018.
+Hypothesis only baselines in natural language in-
+ference. In Proceedings of the Seventh Joint Con-
+ference on Lexical and Computational Semantics,
+pages180–191.
+AlecRadford,KarthikNarasimhan,TimSalimans,and
+Ilya Sutskever. 2018. Improving language under-
+standing by generative pre-training. Technical re-
+port,OpenAI.
+Alec Radford, Jeffrey Wu, Rewon Child, David Luan,
+DarioAmodei,andIlyaSutskever.2019. Language
+modelsareunsupervisedmultitasklearners. Techni-
+calreport,OpenAI.
+Anna Rohrbach, Atousa Torabi, Marcus Rohrbach,
+Niket Tandon, Christopher Pal, Hugo Larochelle,
+Aaron Courville, and Bernt Schiele. 2017. Movie
+Description. InternationalJournalofComputerVi-
+sion,123(1):94–120.
+Rachel Rudinger, Vera Demberg, Ashutosh Modi,
+Benjamin Van Durme, and Manfred Pinkal. 2015.
+Learning to predict script events from domain-
+specific text. In Proceedings of the Fourth Joint
+10
+SupplementalMaterial 2019).
+A AdversarialFilteringSetup
+C BERTsetup
+In this subsection, we provide some more details
+We extensively study BERT in this paper, and
+regardingtheAdversarialFilteringexperiments.
+makenochangestotheunderlyingarchitectureor
+Our version of Adversarial Filtering is mostly
+pretraining. For all of the experiments where we
+thesameasZellersetal.(2018). Details:
+provide context, we set up the input to the BERT
+a. On each iteration, we split the dataset up into
+modellikethis:
+80% training and 20% testing. We don’t do
+[CLS] A woman is outside with a bucket and
+anything special for this split (like looking at
+a dog. The dog is running around trying to
+thevideo/articleIDs).
+avoid a bath. [SEP] She gets the dog wet,
+b. For ActivityNet, we use k “ 9 assigned in-
+then it runs away again [SEP]
+dicesforeveryexample. (Thiscorrespondsto
+In the case where only the ending is pro-
+the number of red columns in Figure 2). For
+vided, weadopttheBERT-style‘single-span’set-
+WikiHow, we used k “ 5, since we found
+ting: [CLS] She gets the dog wet, then it runs
+that there were fewer good endings produced
+away again [SEP]
+bythegeneratorsafterscalingupthesequence
+length.
+D AdiscussiononBERT
+c. Similarly to Zellers et al. (2018), we train the
+HyperparametersandInstability
+AF models in a multi-way fashion. Since
+we use BERT-Large as the discriminator, this It is worth noting that many of our experiments
+matches Devlin et al. (2018)’s model for some instability. On the SWAG experiments, we
+SWAG: on each training example, the model use the same hyperparameters as (Devlin et al.,
+is given exactly one positive ending and sev- 2018) - these generally work very well.13 How-
+eral negative endings, and the model com- ever,wefindthattheybecomeabitunstablewhen
+putesprobabilitydistributionovertheendings crossing over to make HellaSwag. Here, we dis-
+through a softmax. However, we also wanted cusssomestrategiesandinsightthatwepickedup
+toalwaysreport4-wayprobabilityforsimplic- on.
+ity. Todothis,wetrainina4-waysetting(the a. We use a batch size of 64 examples rather
+training set is constructed by subsampling 3
+than 16, and warm the model up for 20% of
+wrong answers from the set of k that are cur-
+the dataset (rather than 10%). This helps the
+rently assigned to each example). The accu-
+model adapt to SWAG more gradually, with-
+racyvaluesthatarereportedaredonesousing
+outdivergingearlyon.
+thefirst3assignednegativesindatasetD test . b. For the Adversarial Filtering experiments (for
+d. Sometimes, BERT never converges (accuracy
+both WikiHow and ActivityNet), we random-
+around 25%), so when this happens, we don’t
+ize some of the hyperaparmeters on each it-
+dothereassignment.
+eration. We sample a learning rate between
+1e-5 and 4e-5, using a log-uniform distribu-
+B GPTSetup
+tion. These outer ranges were recommended
+from the original BERT paper. Additionally,
+We generate our dataset examples from OpenAI
+with probability 0.5 we use the cased model
+GPT. We finetune the model for two epochs on
+(where the input isn’t originally lowercased
+WikiHow,and5epochsonActivityNet,usingthe
+before tokenization), rather than the uncased
+defaultlearningrateof(Radfordetal.,2018). Im-
+model.
+portantly, we generate randomly according to the
+c. Duringadversarialfiltering,weused3epochs.
+language model distribution, rather than perform-
+However, we found that adding more epochs
+ing beam search – this would bias the genera-
+tions towards common words. For the WikiHow
+13The only exception is for the plots where we vary the
+endings, we used Nucleus Sampling with p “ number of training examples. In this case, we don’t want
+0.98,whichmeansthattheprobabilityweightsfor to disadvantage the trials without much training data (since
+this would allow for fewer parameter updates). To remedy
+the tail (those tokens with cumulative probabil-
+this, wecontinuetrainingfor10epochsandreportthebest
+ity mass ă 0.02) are zeroed out (Holtzman et al., validationperformanceovertheentiretraininghistory.
+11
+helped the model during fine-tuning on the fi- are0annotators,wegetarandomsample).
+nal dataset HellaSwag. Our best configuration
+F HumanEvaluation
+uses10epochs.
+d. While fine-tuning on HellaSwag we used a We do a human evaluation while giving workers
+learningrateof 2e-5.
+the exact same task as is given to the models.
+Workersaregivenfiveendings,andmustpickthe
+E Humanvalidation
+bestone. Weobtainhumanevaluationnumbersby
+combining5turkerstogether,withamajorityvote.
+We performed human validation using the same
+We found that the biggest differences in diffi-
+setupas(Zellersetal.,2018). Humansgetsixan-
+cultyinhumanswereduetodomain(WikiHowis
+swers to choose from, of which exactly one is the
+easier than ActivityNet). To account for this, we
+true ending and the other five are from AF. We
+didthehumanevaluationover200examplesfrom
+found that multiple rounds of human validation
+WikiHow,and200examplesfromActivityNet,for
+wereespeciallyhelpfulonActivityNet. However,
+each number of previous validators as shown in
+it helps to do the human validation in an intelli-
+Figure 7 (0, 1, or 2). To report the accuracy of a
+gent way: if the first worker is confused, the an-
+splitthat’smixedbetweenWikiHowandActivity-
+swer shouldbe replaced beforeit goes tothe next
+Net,weusethefollowingformula:
+worker. This is a hard problem, so we adopt the
+followingapproach:
+acc ¨N `acc ¨N
+WikiHow WikiHow ActivityNet ActivityNet
+a. Weusebestpracticesonmechanicalturk,pay-
+N `N
+WikiHow ActivityNet
+ing workers fairly (up to 37 cents per HIT on
+WikiHow). We also used a qualification HIT Here,accreferstotheaccuracyoneachdatasetas
+that was autograded to help filter for workers judgedbyhumans, and N isthenumberofexam-
+whoaregoodatthetask. Workerswhotended plesfromthatdatasetinthesplit.
+to prefer the generated endings over the real
+G Moreexamples
+onesweredequalifiedfromparticipating.
+b. For each worker, we use the summary
+We additionally have more validation examples,
+of their performance so far to estimate
+showninFigure2.
+Ppansweriisright|workerratesiasbestq. We
+canthenusethistoestimatehowconfidentwe H In-DomainandZero-Shotcategories
+areineachanswerchoice: wewanttobecon-
+SeeFigure13foracloserlookatthedatasetcate-
+fident that workers will not prefer the wrong
+gories.
+answers. Also,thisallowsustoaggregateper-
+formance across crowd workers, by multiply-
+ingtheprobabilitiesforeachanswerchoice.
+c. On each round of filtering, we keep the 3
+wrongendingsthatworkersleastprefer(based
+on the probability scores, along with the right
+ending. Theothertwoendingsarenewones.
+ParticularlyonActivityNet,wefoundthatthere
+are some contexts where the ground truth answer
+isn’tliked byworkers. Tofix this, we endup tak-
+ing the best 25k examples from ActivityNet and
+the best 45k from WikiHow. (By best, we mean
+the ones with the highest probability that work-
+ers will predict the true answer, versus the three
+easiest-to-guessnegatives,asjudgedbytheNaive
+Bayes model). We make Figure 7 (‘The road
+to HellaSwag’) by doing this process (taking the
+bestexamples)foreachdataset,whilevaryingthe
+number of annotators that are used for getting the
+scores for each ending. (In the case where there
+12
+Category:Preparingpasta(activitynet;indomain)
+A kitchen is shown followed by various ingredients
+Category:Doingcrunches(activitynet;indomain)
+and a woman speaking to the camera. She begins
+Weseeafitnesscentersign.Wethenseeamantalking
+showing the ingredients and putting them into a hot
+tothecameraandsittingandlayingonaexerciseball.
+boilingpotandstirringaround.she
+theman
+a) shows off the oven and begins assembling the a) demonstrates how to increase efficient exercise
+cookiesintheovenbypushingabuttonontheoven.
+workbyrunningupanddownballs.(0.0%)
+(2.2%)
+b)movesallhisarmsandlegsandbuildsupalotof
+b)continuesmixingupmoreingredientsandthen
+muscle.(80.9%)
+putsthemalltogetherinabowl,servingthedish
+c) then plays the ball and we see a graphics and
+adsprinklingoliveoilaroundit.(97.8%)
+hedgetrimmingdemonstration.(0.0%)
+c) shows raising and lowering the pot until adding
+d)performssitsupswhileontheballandtalking.
+morewaterandcornsyrup.(0.0%)
+(19.1%)
+d)placesanomeletteontothescreenandputsitin
+theoventobake.(0.0%)
+Category:Layupdrillinbasketball(activitynet;zeroshot)
+Category:Sharpeningknives(activitynet;zeroshot) Afemalebasketballcoachisseeninstructingagroup
+A man is seen spinning a blade with his foot on a ofgirlbasketballplayerswhoarestandinginlineona
+machineandmovinghishandsupwithdownholding basketballcourt.thefirstgirl
+aknife.thecamera
+a) passes to another coach and then runs to the
+a)pansaroundandshowsawomanmovingaround netandtakesalayup.(0.0%)
+inajumpropemachine.(0.0%) b)tryingtogettheballtogofarpastthebasketand
+b) captures him from several angles while he hititbacktowardsthebasketwhilehercoachcon-
+sharpens the knife with complete concentration. tinuesteachingher.(100.0%)
+(81.6%) c) walks across the court with the ball and keeps
+c)pansaroundandpointstoamanstandinginside walkingthenpullingthegirlstotheothersideofthe
+the machine as the man continues to move on the court and the girls begin playing volleyball rhyth-
+machine.(18.4%) micallyrollingonthefloorasthecoachhelpsthem
+d) then pans around to a woman and her daughter followhowtoproperlydothings.(0.0%)
+whoalsodanceattheshow.(0.0%) d) line up and stand behind a dummy dummy.
+(0.0%)
+Category:FamilyLife(wikihow;zeroshot)
+[header] How to raise your children to be helpers
+Category:Youth(wikihow;indomain)
+[title] Call them helpers when you ask for things.
+[header] How to make up a good excuse for your
+[step] Instead of asking for help, ask your child to ”
+homeworknotbeingfinished[title]Blametechnology.
+beahelper. ”allpeople, childrenincluded, aremore
+[step]Oneoftheeasiestandmostbelievableexcuses
+motivatedwhentheiridentityisinplay.
+is simply blaming technology. You can say your
+computer crashed, your printer broke, your internet a)Youcanstartdoingthiswithyourchildrenas
+wasdown,oranynumberofproblems. earlyastwoyearsold.[substeps]Youmightsay,
+”jayden,canyoubeahelperandcleanyourbed-
+a)Yourexcuseswillhardlyseembelievable. [sub-
+steps]Thisdoesn’tmeanyouarelying,justonlythat roombeforegrandmacomesover?”or”please
+youdon’thaveallthedetailsofhowyourcomputer beahelperandstayquietwhileyoursisternaps.
+ranatthetimeoftheaccident.(0.0%) (0.1%)
+b) The simplest one to have in a classroom is to b)Whenyoucallyourchildhelpers,describewhat
+blameyouentireclassroom,notjustlab. Ifyoucan they do and what they need to be helped for. [sub-
+thinkofyourselfasthevictim,whynotblameiton steps]Youcouldsay,”ineedyoutohelpdadduring
+technology.(9.4%)
+hislunchbreakatwork.(99.9%)
+c)Mostpeople,yourteacherincluded,haveexpe-
+c)Ifyouaskyourchildforthingstheyhaveaccess
+rienced setbacks due to technological problems. to,itencouragesthemtoputmoreeffortintomaking
+[substeps]Thisisagreatexcuseifyouhadapa- thingshappen. [substeps]Tomakesuretheyunder-
+peryouneededtotypeandprint.(29.1%) standexactlywhat’sexpectedofthem,youcouldtry
+d) It may also be more believable if you are fully saying,”i’mlookingforhelperswhocanbehelpers.
+awarethatyoumaybeflyingathighspeedonaplane (0.0%)
+and need someone to give you traffic report. Your d) Call them when you need them for help or for
+monetaryhelp. [substeps]Forexample,ifyouneed
+problemmightbeyourlaptopfailingtochargeafter
+helpwithsomethingyoudon’tknowhowtodo,let
+alongflight.(61.5%)
+your child know you’re excited to help with this.
+(0.0%)
+Table 2: Example questions answered by BERT-Large. Correct model predictions are in blue, incorrect model
+predictionsarered. Therightanswersarebolded.
+13
+Figure 13: Examples on the in-domain validation set of HellaSwag, grouped by category label. Our evaluation
+setupequallyweightsperformanceoncategoriesseenduringtrainingaswellasout-of-domain.
+14

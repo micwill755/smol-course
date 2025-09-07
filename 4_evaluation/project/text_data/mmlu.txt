@@ -1,0 +1,1379 @@
+PublishedasaconferencepaperatICLR2021
+MEASURING MASSIVE MULTITASK
+LANGUAGE UNDERSTANDING
+DanHendrycks CollinBurns StevenBasart AndyZou
+UCBerkeley ColumbiaUniversity UChicago UCBerkeley
+MantasMazeika DawnSong JacobSteinhardt
+UIUC UCBerkeley UCBerkeley
+ABSTRACT
+We propose a new test to measure a text model’s multitask accuracy. The test
+covers57tasksincludingelementarymathematics,UShistory,computerscience,
+law,andmore. Toattainhighaccuracyonthistest,modelsmustpossessextensive
+world knowledge and problem solving ability. We find that while most recent
+modelshavenearrandom-chanceaccuracy,theverylargestGPT-3modelimproves
+overrandomchancebyalmost20percentagepointsonaverage. However,onevery
+oneofthe57tasks, thebestmodelsstillneedsubstantialimprovementsbefore
+they can reach expert-level accuracy. Models also have lopsided performance
+and frequently do not know when they are wrong. Worse, they still have near-
+randomaccuracyonsomesociallyimportantsubjectssuchasmoralityandlaw.
+Bycomprehensivelyevaluatingthebreadthanddepthofamodel’sacademicand
+professionalunderstanding,ourtestcanbeusedtoanalyzemodelsacrossmany
+tasksandtoidentifyimportantshortcomings.
+1 INTRODUCTION
+NaturalLanguageProcessing(NLP)modelshaveachievedsuperhumanperformanceonanumberof
+recentlyproposedbenchmarks. However,thesemodelsarestillwellbelowhumanlevelperformance
+forlanguageunderstandingasawhole,suggestingadisconnectbetweenourbenchmarksandthe
+actualcapabilitiesofthesemodels. TheGeneralLanguageUnderstandingEvaluationbenchmark
+(GLUE)(Wangetal.,2018)wasintroducedin2018toevaluateperformanceonawiderangeofNLP
+tasks,andtopmodelsachievedsuperhumanperformancewithinayear. Toaddresstheshortcomings
+ofGLUE,researchersdesignedtheSuperGLUEbenchmarkwithmoredifficulttasks(Wangetal.,
+2019). AboutayearsincethereleaseofSuperGLUE,performanceisagainessentiallyhuman-level
+(Raffeletal.,2019). Whilethesebenchmarksevaluatelinguisticskillsmorethanoveralllanguage
+understanding,anarrayofcommonsensebenchmarkshavebeenproposedtomeasurebasicreasoning
+andeverydayknowledge(Zellersetal.,2019;Huangetal.,2019;Bisketal.,2019). However,these
+recent benchmarks have similarly seen rapid progress (Khashabi et al., 2020). Overall, the near
+human-levelperformanceonthesebenchmarkssuggeststhattheyarenotcapturingimportantfacets
+oflanguageunderstanding.
+Transformermodelshavedriventhisrecentprogressbypretrainingonmassivetextcorpora,including
+all of Wikipedia, thousands of books, and numerous websites. These models consequently see
+extensive information about specialized topics, most of which is not assessed by existing NLP
+benchmarks. Itconsequentlyremainsanopenquestionjusthowcapablecurrentlanguagemodelsare
+atlearningandapplyingknowledgefrommanydomains.
+Tobridgethegapbetweenthewide-rangingknowledgethatmodelsseeduringpretrainingandthe
+existingmeasuresofsuccess,weintroduceanewbenchmarkforassessingmodelsacrossadiverse
+setofsubjectsthathumanslearn. Wedesignthebenchmarktomeasureknowledgeacquiredduring
+pretraining by evaluating models exclusively in zero-shot and few-shot settings. This makes the
+benchmarkmorechallengingandmoresimilartohowweevaluatehumans. Thebenchmarkcovers
+57subjectsacrossSTEM,thehumanities,thesocialsciences,andmore. Itrangesindifficultyfrom
+anelementaryleveltoanadvancedprofessionallevel,andittestsbothworldknowledgeandproblem
+solving ability. Subjects range from traditional areas, such as mathematics and history, to more
+1
+1202
+naJ
+21
+]YC.sc[
+3v00330.9002:viXra
+PublishedasaconferencepaperatICLR2021
+Few Shot Prompt and Predicted Answer 90
+The following are multiple choice questions
+80
+about high school mathematics.
+How many numbers are in the list 25, 26, ..., 100? 70
+(A) 75 (B) 76 (C) 22 (D) 23
+60
+Answer: B
+Compute i+i2+i3+···+i258+i259. 50
+(A) -1 (B) 1 (C) i (D) -i
+40
+Answer: A
+If 4 daps = 7 yaps, and 5 yaps = 3 baps, 30
+how many daps equal 42 baps?
+(A) 28 (B) 21 (C) 40 (D) 30 20
+Small Medium Large X-Large
+Answer: ␣C
+Model Size
+(a)Anexampleoffew-shotlearningandinferenceus-
+ingGPT-3. Theblueunderlinedboldtextistheauto-
+completedresponsefromGPT-3,whilethepreceding
+textistheuser-inputtedprompt.Inthis2-shotlearning
+example,therearetwoinstructionexamplesandone
+initiallyincompleteexample.Onaverage,GPT-3has
+lowaccuracyonhighschoolmathematicsquestions.
+)%(
+ecnamrofreP
+GPT-3 Few Shot Test Performance
+Commonsense
+Linguistics
+Knowledge (Ours)
+(b)Performanceonacommonsensebenchmark(Hel-
+laSwag),alinguisticunderstandingbenchmark(Super-
+GLUE),andthemassivemultitasktest. Onprevious
+benchmarks,smallermodelsstartwellaboverandom
+chance levels and exhibit more continuous improve-
+mentswithmodelsizeincreases,butonourtest,GPT-3
+movesbeyondrandomchancewiththelargestmodel.
+specializedareaslikelawandethics(Hendrycksetal.,2020). Thegranularityandbreadthofthe
+subjectsmakesthebenchmarkidealforidentifyingamodel’sblindspots.
+Wefindthatmeaningfulprogressonourbenchmarkhasonlybecomepossibleinrecentmonths. In
+particular,few-shotmodelsupto13billionparameters(Brownetal.,2020)achieverandomchance
+performanceof25%accuracy,butthe175billionparameterGPT-3modelreachesamuchhigher
+43.9%accuracy(seeFigure1b). Ontheotherhand, unlikehumanprofessionalsGPT-3doesnot
+excelatanysinglesubject. Instead,wefindthatperformanceislopsided,withGPT-3havingalmost
+70%accuracyforitsbestsubjectbutnear-randomperformanceforseveralothersubjects.
+Ourresultsindicatethatwhilerecentadvanceshavebeenimpressive,state-of-the-artmodelsstill
+struggleatlearningandapplyingknowledgefrompretraining. Thetaskswithnear-randomaccuracy
+includecalculation-heavysubjectssuchasphysicsandmathematicsandsubjectsrelatedtohuman
+valuessuchaslawandmorality. Thissecondweaknessisparticularlyconcerningbecauseitwill
+beimportantforfuturemodelstohaveastrongunderstandingofwhatislegalandwhatisethical.
+Worryingly,wealsofindthatGPT-3doesnothaveanaccuratesenseofwhatitdoesordoesnotknow
+sinceitsaverageconfidencecanbeupto24%offfromitsactualaccuracy. Wecomprehensively
+evaluatethebreadthanddepthofamodel’stextunderstandingbycoveringnumeroustopicsthat
+humans are incentivized to learn. Since our test consists in 57 tasks, it can be used to analyze
+aggregatepropertiesofmodelsacrosstasksandtotrackimportantshortcomings. Thetestandcodeis
+availableatgithub.com/hendrycks/test.
+2 RELATED WORK
+Pretraining. ThedominantparadigminNLPistopretrainlargemodelsonmassivetextcorpora
+includingeducationalbooksandwebsites. Intheprocess,thesemodelsareexposedtoinformation
+aboutawiderangeoftopics. Petronietal.(2019)foundthatrecentmodelslearnenoughinformation
+frompretrainingthattheycanserveasknowledgebases.However,nopriorworkhascomprehensively
+measuredtheknowledgemodelshaveacrossmanyreal-worlddomains.
+Untilrecently,researchersprimarilyusedfine-tunedmodelsondownstreamtasks(Devlinetal.,2019).
+However,largerpretrainedmodelslikeGPT-3(Brownetal.,2020)havemadeitpossibletoachieve
+competitiveperformancewithoutfine-tuningbyusingfew-shotlearning,whichremovestheneedfor
+alargefine-tuningset. Withtheadventofstrongzero-shotandfew-shotlearning,itisnowpossible
+tocurateadiversesetoftasksforevaluationandremovethepossibilityofmodelson“spuriouscues”
+(Geirhosetal.,2020;Hendrycksetal.,2019b)inadatasettoachievehighperformance.
+Benchmarks. Manyrecentbenchmarksaimtoassessamodel’sgeneralworldknowledgeandbasic
+reasoningabilitybytestingits“commonsense.” Anumberofcommonsensebenchmarkshavebeen
+2
+PublishedasaconferencepaperatICLR2021
+As Seller, an encyclopedia salesman, approached the grounds on which Hermit's house was situated,
+he saw a sign that said, "No salesmen. Trespassers will be prosecuted. Proceed at your own risk."
+Although Seller had not been invited to enter, he ignored the sign and drove up the driveway toward
+the house. As he rounded a curve, a powerful explosive charge buried in the driveway exploded, and
+Seller was injured. Can Seller recover damages from Hermit for his injuries?
+(A) Yes, unless Hermit, when he planted the charge, intended only to deter, not harm, intruders.
+(B) Yes, if Hermit was responsible for the explosive charge under the driveway.
+(C) No, because Seller ignored the sign, which warned him against proceeding further.
+(D) No, if Hermit reasonably feared that intruders would come and harm him or his family.
+waL
+lanoisseforP
+Figure2: Thistaskrequiresunderstandingdetailedanddissonantscenarios,applyingappropriate
+legalprecedents,andchoosingthecorrectexplanation. Thegreencheckmarkisthegroundtruth.
+proposedinthepastyear,butrecentmodelsarealreadynearinghuman-levelperformanceonseveral
+ofthese,includingHellaSwag(Zellersetal.,2019),PhysicalIQA(Bisketal.,2019),andCosmosQA
+(Huangetal.,2019). Bydesign,thesedatasetsassessabilitiesthatalmosteverychildhas. Incontrast,
+weincludeharderspecializedsubjectsthatpeoplemuststudytolearn.
+SomeresearchershavesuggestedthatthefutureofNLPevaluationshouldfocusonNaturalLanguage
+Generation(NLG)(Zellersetal.,2020),anideathatreachesbacktotheTuringTest(Turing,1950).
+However, NLG is notoriously difficult to evaluate and lacks a standard metric (Sai et al., 2020).
+Consequently,weinsteadcreateasimple-to-evaluatetestthatmeasuresclassificationaccuracyon
+multiplechoicequestions.
+Whileseveralquestionansweringbenchmarksexist,theyarecomparativelylimitedinscope. Most
+either cover easy topics like grade school subjects for which models can already achieve strong
+performance (Clark et al., 2018; Khot et al., 2019; Mihaylov et al., 2018; Clark et al., 2019), or
+are focused on linguistic understanding in the form of reading comprehension (Lai et al., 2017;
+Richardsonetal.,2013). Incontrast,weincludeawiderangeofdifficultsubjectsthatgofarbeyond
+linguisticunderstanding.
+3 A MULTITASK TEST
+Wecreateamassivemultitasktestconsistingofmultiple-choicequestionsfromvariousbranchesof
+knowledge. Thetestspanssubjectsinthehumanities,socialsciences,hardsciences,andotherareas
+thatareimportantforsomepeopletolearn. Thereare57tasksintotal,whichisalsothenumber
+of Atari games (Bellemare et al., 2013), all of which are listed in Appendix B. The questions in
+thedatasetweremanuallycollectedbygraduateandundergraduatestudentsfromfreelyavailable
+sourcesonline. TheseincludepracticequestionsfortestssuchastheGraduateRecordExamination
+and the United States Medical Licensing Examination. It also includes questions designed for
+undergraduatecoursesandquestionsdesignedforreadersofOxfordUniversityPressbooks. Some
+tasks cover a subject, like psychology, but at a specific level of difficulty, such as “Elementary,”
+“HighSchool,”“College,”or“Professional.” Forexample,the“ProfessionalPsychology”taskdraws
+onquestionsfromfreelyavailablepracticequestionsfortheExaminationforProfessionalPractice
+inPsychology,whilethe“HighSchoolPsychology”taskhasquestionslikethosefromAdvanced
+PlacementPsychologyexaminations.
+Wecollected15908questionsintotal,whichwesplitintoafew-shotdevelopmentset,avalidation
+set,andatestset. Thefew-shotdevelopmentsethas5questionspersubject,thevalidationsetmay
+be used for selecting hyperparameters and is made of 1540 questions, and the test set has 14079
+questions. Eachsubjectcontains100testexamplesattheminimum,whichislongerthanmostexams
+designedtoassesspeople.
+Human-levelaccuracyonthistestvaries. UnspecializedhumansfromAmazonMechanicalTurk
+obtain 34.5% accuracy on this test. Meanwhile, expert-level performance can be far higher. For
+example,real-worldtest-takerhumanaccuracyatthe95thpercentileisaround87%forUSMedical
+LicensingExaminations,andthesequestionsmakeupour“ProfessionalMedicine”task. Ifwetake
+the95thpercentilehumantest-takeraccuracyforexamsthatbuildupourtest,andifwemakean
+educatedguesswhensuchinformationisunavailable,wethenestimatethatexpert-levelaccuracyis
+approximately89.8%.
+Sinceourtestaggregatesdifferentsubjectsandseverallevelsofdifficulty,wemeasuremorethan
+straightforwardcommonsenseornarrowlinguisticunderstanding. Instead, wemeasurearbitrary
+3
+PublishedasaconferencepaperatICLR2021
+One of the reasons that the government discourages and regulates monopolies is that
+(A) producer surplus is lost and consumer surplus is gained.
+(B) monopoly prices ensure productive efficiency but cost society allocative efficiency.
+(C) monopoly firms do not engage in significant research and development.
+(D) consumer surplus is lost with higher prices and lower levels of output.
+scimonoceorciM
+Figure3: ExamplesfromtheMicroeconomicstask.
+When you drop a ball from rest it accelerates downward at 9.8 m/s². If you instead throw it
+downward assuming no air resistance its acceleration immediately after leaving your hand is
+(A) 9.8 m/s²
+(B) more than 9.8 m/s²
+(C) less than 9.8 m/s²
+(D) Cannot say unless the speed of throw is given.
+lautpecnoC
+egelloC
+scisyhP
+scitamehtaM In the complex z-plane, the set of points satisfying the equation z² = |z|² is a
+(A) pair of points
+(B) circle
+(C) half-line
+(D) line
+Figure4: ExamplesfromtheConceptualPhysicsandCollegeMathematicsSTEMtasks.
+real-worldtextunderstanding. SincemodelsarepretrainedontheInternet,thisenablesustotest
+howwelltheycanextractusefulknowledgefrommassivecorpora. Futuremodelsthatusethistest
+couldbesinglemodelsoramixtureofexpertsmodel. Tosucceedatourtest,futuremodelsshouldbe
+well-rounded,possessextensiveworldknowledge,anddevelopexpert-levelproblemsolvingability.
+Thesepropertiesmakethetestlikelytobeanenduringandinformativegoalpost.
+3.1 HUMANITIES
+Thehumanitiesisagroupofdisciplinesthatmakeuseofqualitativeanalysisandanalyticmethods
+ratherthanscientificempiricalmethods. Branchesofthehumanitiesincludelaw,philosophy,history,
+andsoon(AppendixB).Masteringthesesubjectsrequiresavarietyofskills. Forexample,legal
+understandingrequiresknowledgeofhowtoapplyrulesandstandardstocomplexscenarios,and
+also provide answers with stipulations and explanations. We illustrate this in Figure 2. Legal
+understandingisalsonecessaryforunderstandingandfollowingrulesandregulations,anecessary
+capabilitytoconstrainopen-worldmachinelearningmodels. Forphilosophy,ourquestionscover
+concepts like logical fallacies, formal logic, and famous philosophical arguments. It also covers
+moralscenarios,includingquestionsfromtheETHICSdataset(Hendrycksetal.,2020)thattesta
+model’sunderstandingofnormativestatementsthroughpredictingwidespreadmoralintuitionsabout
+diverseeverydayscenarios. Finally,ourhistoryquestionscoverawiderangeoftimeperiodsand
+geographicallocations,includingprehistoryandotheradvancedsubjects.
+3.2 SOCIALSCIENCE
+Socialscienceincludesbranchesofknowledgethatexaminehumanbehaviorandsociety. Subject
+areasincludeeconomics,sociology,politics,geography,psychology,andsoon. SeeFigure3for
+an example question. Our economics questions include microeconomics, macroeconomics, and
+econometrics,andcoverdifferenttypesofproblems,includingquestionsthatrequireamixtureof
+worldknowledge,qualitativereasoning,orquantitativereasoning. Wealsoincludeimportantbut
+moreesoterictopicssuchassecuritystudiesinordertotesttheboundariesofwhatisexperiencedand
+learnedduringpretraining. Socialsciencealsoincludespsychology,afieldthatmaybeespecially
+importantforattaininganuancedunderstandingofhumans.
+3.3 SCIENCE,TECHNOLOGY,ENGINEERING,ANDMATHEMATICS(STEM)
+STEMsubjectsincludephysics,computerscience,mathematics,andmore. Twoexamplesareshown
+inFigure4. Conceptualphysicstestsunderstandingofsimplephysicsprinciplesandmaybethought
+4
+PublishedasaconferencepaperatICLR2021
+A 33-year-old man undergoes a radical thyroidectomy for thyroid cancer. During the operation,
+moderate hemorrhaging requires ligation of several vessels in the left side of the neck.
+Postoperatively, serum studies show a calcium concentration of 7.5 mg/dL, albumin concentration
+of 4 g/dL, and parathyroid hormone concentration of 200 pg/mL. Damage to which of the following
+vessels caused the findings in this patient?
+(A) Branch of the costocervical trunk
+(B) Branch of the external carotid artery
+(C) Branch of the thyrocervical trunk
+(D) Tributary of the internal jugular vein
+enicideM
+lanoisseforP
+Figure5: AquestionfromtheProfessionalMedicinetask.
+ofasaharderversionofthephysicalcommonsensebenchmarkPhysicalIQA(Bisketal.,2019). We
+alsotestmathematicalproblemsolvingabilityatvariouslevelsofdifficulty,fromtheelementaryto
+thecollegelevel. Collegemathematicsquestions,likethosefoundontheGREmathematicssubject
+test,oftenrequirechainsofreasoningandabstractknowledge. Toencodemathematicsexpressions,
+weuseLaTeXorsymbolssuchas*andˆformultiplicationandexponentiationrespectively. STEM
+subjectsrequireknowledgeofempiricalmethods,fluidintelligence,andproceduralknowledge.
+3.4 OTHER
+Thereisalongtailofsubjectsthateitherdonotneatlyfitintoanyofthethreeprecedingcategoriesor
+forwhichtherearenotthousandsoffreelyavailablequestions. WeputthesesubjectsintoOther. This
+sectionincludestheProfessionalMedicinetask,whichhasdifficultquestionsthatrequirehumans
+many years of study to master. An example is depicted in Figure 5. This section also contains
+businesstopicslikefinance,accounting,andmarketing,aswellasknowledgeofglobalfacts. The
+latterincludesstatisticsaboutpovertyindifferentcountriesovertime,whichmaybenecessaryfor
+havinganaccuratemodeloftheworldinternationally.
+4 EXPERIMENTS
+4.1 SETUP
+Assessment and Models. To measure performance on our multitask test, we compute the clas-
+sification accuracy across all examples and tasks. We evaluate GPT-3 (Brown et al., 2020) and
+UnifiedQA(Khashabietal.,2020). ForGPT-3weusetheOpenAIAPI,whichprovidesaccesstofour
+modelvariants,“Ada,”“Babbage,”“Curie,”and“Davinci,”whichwerefertoas“Small”(2.7billion
+parameters),“Medium”(6.7billion),“Large”(13billion)and“X-Large”(175billion). UnifiedQA
+uses the T5 (Raffel et al., 2019) text-to-text backbone and is fine-tuned on previously proposed
+question answering datasets (Lai et al., 2017), where the prediction is the class with the highest
+tokenoverlapwithUnifiedQA’stextoutput. SinceUnifiedQAisfine-tunedonotherdatasets,we
+evaluateitwithoutanyfurthertuningtoassessitstransferaccuracy. Wealsofine-tuneRoBERTa-base,
+ALBERT-xxlarge,andGPT-2onUnifiedQAtrainingdataandourdev+valset. Weprimarilyfocuson
+UnifiedQAandGPT-3intherestofthisdocument,butadditionaldiscussionofRoBERTa,ALBERT,
+andGPT-2isinAppendixA.
+Model Humanities SocialScience STEM Other Average
+RandomBaseline 25.0 25.0 25.0 25.0 25.0
+RoBERTa 27.9 28.8 27.0 27.7 27.9
+ALBERT 27.2 25.7 27.7 27.9 27.1
+GPT-2 32.8 33.3 30.2 33.1 32.4
+UnifiedQA 45.6 56.6 40.2 54.6 48.9
+GPT-3Small(few-shot) 24.4 30.9 26.0 24.1 25.9
+GPT-3Medium(few-shot) 26.1 21.6 25.6 25.5 24.9
+GPT-3Large(few-shot) 27.1 25.6 24.3 26.5 26.0
+GPT-3X-Large(few-shot) 40.8 50.4 36.7 48.8 43.9
+Table1: Averageweightedaccuracyforeachmodelonallfourbroaddisciplines. Allvaluesare
+percentages. Somemodelsproposedinthepastfewmonthscanmoveseveralpercentpointsbeyond
+randomchance. GPT-3usesfew-shotlearningandUnifiedQAistestedunderdistributionshift.
+5
+PublishedasaconferencepaperatICLR2021
+Few-Shot Prompt. We feed GPT-3 prompts
+Abstract Algebra GPT-3
+like that shown in Figure 1a. We begin each Anatomy UnifiedQA
+promptwith“Thefollowingaremultiplechoice Astronomy Random
+questions(withanswers)about[subject].” For Business Ethics
+Clinical Knowledge
+zero-shotevaluation,weappendthequestionto
+College Biology
+theprompt. Forfew-shotevaluation,weaddup College Chemistry
+to 5 demonstration examples with answers to College Comp Sci
+College Mathematics
+thepromptbeforeappendingthequestion. All
+College Medicine
+promptsendwith“Answer: ”. Themodelthen College Physics
+producesprobabilitiesforthetokens“A,”“B,” Computer Security
+Conceptual Physics
+“C,”and“D,”andwetreatthehighestprobability
+Econometrics
+optionastheprediction. Forconsistentevalua- Electrical Engineering
+tion,wecreateadevsetwith5fixedfew-shot Elementary Mathematics
+Formal Logic
+examplesforeachsubject.
+Global Facts
+High School Biology
+High School Chemistry
+4.2 RESULTS High School Comp Sci
+High School European History
+High School Geography
+ModelSizeandAccuracy. Wecomparethe
+High School Gov't and Politics
+few-shotaccuracyofeachGPT-3sizeinTable1. High School Macroeconomics
+We find that the three smaller GPT-3 models High School Mathematics
+High School Microeconomics
+have near random accuracy (around 25%). In
+High School Physics
+contrast, we find that the X-Large 175 billion High School Psychology
+parameterGPT-3modelperformssubstantially High School Statistics
+High School US History
+betterthanrandom,withanaccuracyof43.9%.
+High School World History
+Wealsofindqualitativelysimilarresultsinthe Human Aging
+zero-shot setting. While the smaller models Human Sexuality
+International Law
+havearound25%zero-shotaccuracy,Figure10
+Jurisprudence
+in Appendix A shows that the largest GPT-3 Logical Fallacies
+modelhasamuchhigherzero-shotaccuracyof Machine Learning
+Management
+about37.7%. Brownetal.(2020)alsoobserve
+Marketing
+thatlargerGPT-3modelsperformbetter,though Medical Genetics
+progresstendstobesteadier. InFigure1bwe Miscellaneous
+Moral Disputes
+showthatnon-randomaccuracyonthemultitask
+Moral Scenarios
+testemergedwithrecentlargefew-shotmodels Nutrition
+comparedtodatasetsthatassesscommonsense Philosophy
+Prehistory
+andlinguisticunderstanding.
+Professional Accounting
+Professional Law
+Totesttheusefulnessoffine-tuninginsteadof
+Professional Medicine
+few-shotlearning,wealsoevaluateUnifiedQA Professional Psychology
+models. UnifiedQAhastheadvantageofbeing Public Relations
+Security Studies
+fine-tunedonotherquestionansweringdatasets,
+Sociology
+unlikeGPT-3. WeassessUnifiedQAbyevalu- US Foreign Policy
+ating its transfer performance without any ad- Virology
+World Religions
+ditional fine-tuning. The largest UnifiedQA
+0 20 40 60 80 100
+modelwetesthas11billionparameters,which
+Accuracy (%)
+isslightlysmallerthanGPT-3Large. Neverthe-
+Figure6:GPT-3(few-shot)andUnifiedQAresults.
+less, we show in Table 1 that it attains 48.9%
+accuracy. Thisperformsbetterthanthefew-shotGPT-3X-Largemodel,despiteUnifiedQAhave
+an order of magnitude fewer parameters. We also find that even the smallest UnifiedQA variant,
+withjust60millionparameters,hasapproximately29.3%accuracy. Theseresultssuggestthatwhile
+modelsizeisakeycomponentforachievingstrongperformance,fine-tuningalsohelps.
+Comparing Disciplines. Using our test, we discover that GPT-3 and UnifiedQA have lopsided
+performanceandseveralsubstantialknowledgegaps. Figure6showstheaccuracyofGPT-3(few-
+shot)andUnifiedQAforall57tasks. Itshowsthebothmodelsarebelowexpert-levelperformance
+foralltasks,withGPT-3’saccuracyrangingfrom69%forUSForeignPolicyto26%forCollege
+Chemistry. UnifiedQAdoesbestonmarketing,withanaccuracyof82.5%.
+Overall,modelsdopoorlyonhighlyproceduralproblems. Figure6showsthatcalculation-heavy
+STEMsubjectstendtohavelowaccuracycomparedtoverbalsubjects. ForGPT-3,9outofthe10
+6
+PublishedasaconferencepaperatICLR2021
+60
+Declarative vs. Procedural Knowledge
+Prompt and Completion:
+The order of operations or PEMDAS is 50
+Parentheses Exponents Multiplication
+Division Addition Subtraction
+40
+Prompt and Completion:
+(1 + 1) × 2 =␣ 3 30
+Figure 7: GPT-3’s completion for two prompts
+testingknowledgeoftheorderofoperations. The 20
+blue underlined bold text is the autocompleted
+20 30 40 50 60
+responsefromGPT-3. Whileitknowsabout the
+Confidence (%)
+orderofoperations, itsometimesdoesnotknow
+howtoapplyitsknowledge.
+)%(
+ycaruccA
+GPT-3 Zero-Shot Calibration
+Marketing
+Formal Logic
+Figure8: GPT-3’sconfidenceisapoorestimator
+ofitsaccuracyandcanbeoffbyupto24%.
+lowest-accuracytasksareSTEMsubjectsthatemphasizemathematicsorcalculations. Wespeculate
+thatisinpartbecauseGPT-3acquiresdeclarativeknowledgemorereadilythanproceduralknowledge.
+Forexample,manyquestionsinElementaryMathematicsrequireapplyingtheorderofoperations
+forarithmetic,whichisdescribedbytheacronymPEMDAS(ParenthesesExponentsMultiplication
+Division Addition Subtraction). In Figure 7, we confirm that GPT-3 is aware of the acronym
+PEMDAS.However,itdoesnotconsistentlyapplyPEMDAStoactualproblems. Ontheotherhand,
+proceduralunderstandingisnotitsonlyweakpoint. WefindthatsomeverbaltaskssuchasMoral
+ScenariosfromHendrycksetal.(2020)andProfessionalLawalsohaveespeciallylowaccuracy.
+OurtestalsoshowsthatGPT-3acquiresknowledgequiteunlikehumans. Forexample,GPT-3learns
+about topics in a pedagogically unusual order. GPT-3 does better on College Medicine (47.4%)
+andCollegeMathematics(35.0%)thancalculation-heavyElementaryMathematics(29.9%). GPT-3
+demonstratesunusualbreadth,butitdoesnotmasterasinglesubject.Meanhwhilewesuspecthumans
+havemasteryinseveralsubjectsbutnotasmuchbreadth. Inthisway,ourtestshowsthatGPT-3has
+manyknowledgeblindspotsandhascapabilitiesthatarelopsided.
+Calibration. We should not trust a model’s prediction unless the model is calibrated, meaning
+thatitsconfidenceisagoodestimateoftheactualprobabilitythepredictioniscorrect. However,
+largeneuralnetworksareoftenmiscalibrated(Guoetal.,2017),especiallyunderdistributionshift
+(Ovadiaetal.,2019). WeevaluatethecalibrationofGPT-3bytestinghowwellitsaverageconfidence
+estimatesitsactualaccuracyforeachsubject. WeshowtheresultsinFigure8,whichdemonstrates
+thatGPT-3isuncalibrated. Infact,itsconfidenceisonlyweaklyrelatedtoitsactualaccuracyin
+thezero-shotsetting,withthedifferencebetweenitsaccuracyandconfidencereachingupto24%
+forsomesubjects. AnothercalibrationmeasureistheRootMeanSquared(RMS)calibrationerror
+(Hendrycksetal.,2019a;Kumaretal.,2019). Manytaskshavemiscalibratedpredictions,suchas
+ElementaryMathematicswhichhasazero-shotRMScalibrationerrorof19.4%. Modelsareonly
+somewhatmorecalibratedinthefew-shotsetting,asshowninAppendixA.Theseresultssuggest
+thatmodelcalibrationhaswideroomforimprovement.
+5 DISCUSSION
+MultimodalUnderstanding. Whiletextiscapableofconveyinganenormousnumberofconcepts
+abouttheworld,manyimportantconceptsareconveyedmainlythroughothermodalities,suchas
+images,audio,andphysicalinteraction(Bisketal.,2020). Existinglarge-scaleNLPmodels,suchas
+GPT-3,donotincorporatemultimodalinformation,sowedesignourbenchmarktocaptureadiverse
+arrayoftasksinatext-onlyformat. However,asmodelsgaintheabilitytoprocessmultimodalinputs,
+benchmarksshouldbedesignedtoreflectthischange. Onesuchbenchmarkcouldbea“TurkTest,”
+consistingofAmazonMechanicalTurkHumanIntelligenceTasks. Thesearewell-definedtasksthat
+requiremodelstointeractwithflexibleformatsanddemonstratemultimodalunderstanding.
+TheInternetasaTrainingSet. Amajordistinctionbetweenourbenchmarkandpreviousmultitask
+NLPbenchmarksisthatwedonotrequirelargetrainingsets. Instead,weassumethatmodelshave
+acquiredtherequisiteknowledgefromreadingvastquantitiesofdiversetextfromtheInternet. This
+7
+PublishedasaconferencepaperatICLR2021
+processistypicallycalledpretraining,butitcanbethoughtofastraininginitsownright,wherethe
+downstreamevaluationisdemonstratingwhateverknowledgewewouldexpectahumantopickup
+fromreadingthesametext.
+This motivates us to propose a methodological change so that models are trained more like how
+humanslearn. Whilemostpreviousmachinelearningbenchmarkshavemodelslearnfromalarge
+questionbank,humansprimarilylearnnewsubjectsbyreadingbooksandlisteningtootherstalk
+aboutthetopic.ForspecializedsubjectssuchasProfessionalLaw,massivelegalcorporaareavailable,
+suchasthe164-volumelegalencyclopediaCorpusJurisSecundum,buttherearefewerthan5,000
+multistatebarexamquestionsavailable. Learningtheentirelawexclusivelythroughasmallnumber
+ofpracticetestsisimplausible,sofuturemodelsmustlearnmoreduringpretraining.
+Forthisreasonweassesspretrainedmodelsinazero-shot,few-shot,ortransfersettingandweprovide
+adev,val,andtestsetforeachtask. Thedevsetisusedforfew-shotprompts,thevalsetcouldbe
+usedforhyperparametertuning,andthetestsetisusedtocomputethefinalaccuracy. Importantly,
+theformatofourevaluationisnotidenticaltotheformatinwhichinformationisacquiredduring
+pretraining. Thishasthebenefitofobviatingconcernsaboutspurioustrainingsetannotationartifacts
+(Geirhos et al., 2020; Hendrycks et al., 2019b) and is in stark contrast to the previous paradigm
+ofidenticallydistributedtrainingandtestsets. Thischangealsoenablescollectingamuchmore
+extensiveanddiversesetoftasksforevaluation. Weanticipateourmethodologybecomingmore
+widespreadasmodelsimproveatextractinginformationfromdiverseonlinesources.
+ModelLimitations. Wefindthatcurrentlarge-scaleTransformershavewideroomforimprovement.
+Theyarenotablypooratmodelinghuman(dis)approval,asevidentbythelowperformanceonthe
+ProfessionalLawandMoralScenariostasks.Forfuturesystemstobealignedwithhumanvalues,high
+performanceonthesetasksiscrucial(Hendrycksetal.,2020),sofutureresearchshouldespecially
+aimtoincreaseaccuracyonthesetasks. Modelsalsohavedifficultyperformingcalculations,somuch
+sothattheyexhibitpoorperformanceonElementaryMathematicsandmanyotherSTEMsubjects
+with“plugandchug”problems. Additionally,theydonotmatchexpert-levelperformance(90%)on
+anysubject,soforallsubjectsitissubhuman. Onaverage,modelsareonlynowstartingtomove
+beyondrandom-chanceaccuracylevels.
+Addressingtheseshortcomingsmaybechallenging. Toillustratethis,weattemptedtocreateabetter
+ProfessionalLawmodelbypretrainingonspecializeddatabutachievedonlylimitedsuccess. We
+collectedapproximately2,000additionalProfessionalLawtrainingexamples. Afterfine-tuninga
+RoBERTa-basemodel(Liuetal.,2019)usingthiscustomtrainingset,ourmodelattained32.8%test
+accuracy. Totesttheimpactofadditionalspecializedtrainingdata,wealsohadRoBERTacontinue
+pretrainingonapproximately1.6millionlegalcasesummariesusingHarvard’sLawLibrarycaselaw
+corpuscase.law,butafterfine-tuningitonlyattained36.1%accuracy. Thissuggeststhatwhile
+additionalpretrainingonrelevanthighqualitytextcanhelp,itmaynotbeenoughtosubstantially
+increasetheperformanceofcurrentmodels.
+It is unclear whether simply scaling up existing language models will solve the test. Current
+understandingindicatesthata10×increaseinmodelsizemustbeaccompaniedbyanapproximate
+5×increaseindata(Kaplanetal.,2020).Asidefromthetremendousexpenseincreatingmulti-trillion
+parameterlanguagemodels,datamayalsobecomeabottleneck,asthereisfarlesswrittenabout
+esotericbranchesofknowledgethanabouteverydaysituations.
+6 CONCLUSION
+We introduced a new test that measures how well text models can learn and apply knowledge
+encountered during pretraining. By covering 57 subjects at varying levels of difficulty, the test
+assesseslanguageunderstandingingreaterbreadthanddepththanpreviousbenchmarks. Wefound
+thatithasrecentlybecomepossibleformodelstomakemeaningfulprogressonthetest,butthat
+state-of-the-artmodelshavelopsidedperformanceandrarelyexcelatanyindividualtask. Wealso
+showedthatcurrentmodelsareuncalibratedandhavedifficultywithtasksthatrequirecalculations.
+Worryingly,modelsalsoperformespeciallypoorlyonsociallyrelevantsubjectsincludingmorality
+andlaw. Ourexpansivetestcanhelpresearcherspinpointimportantshortcomingsofmodels,making
+iteasiertogainaclearerpictureofstate-of-the-artcapabilities.
+8
+PublishedasaconferencepaperatICLR2021
+ACKNOWLEDGEMENTS
+Wewouldliketothankthefollowingfortheirhelpfulcomments: OyvindTafjord,JanLeike,David
+Krueger,AlexTamkin,GirishSastry,andHenryZhu. DHissupportedbytheNSFGRFPFellowship
+andanOpenPhilanthropyProjectFellowship. ThisresearchwasalsosupportedbytheNSFFrontier
+Award1804794.
+REFERENCES
+M. G. Bellemare, Y. Naddaf, J. Veness, and M. Bowling. The arcade learning environment: An
+evaluationplatformforgeneralagents(extendedabstract). J.Artif.Intell.Res.,47:253–279,2013.
+Y.Bisk,R.Zellers,R.L.Bras,J.Gao,andY.Choi. Piqa: Reasoningaboutphysicalcommonsensein
+naturallanguage,2019.
+Y.Bisk,A.Holtzman,J.Thomason,J.Andreas,Y.Bengio,J.Chai,M.Lapata,A.Lazaridou,J.May,
+A.Nisnevich,N.Pinto,andJ.Turian. Experiencegroundslanguage,2020.
+T.B.Brown,B.Mann,N.Ryder,M.Subbiah,J.Kaplan,P.Dhariwal,A.Neelakantan,P.Shyam,
+G.Sastry,A.Askell,S.Agarwal,A.Herbert-Voss,G.Krueger,T.Henighan,R.Child,A.Ramesh,
+D. M. Ziegler, J. Wu, C. Winter, C. Hesse, M. Chen, E. Sigler, M. Litwin, S. Gray, B. Chess,
+J.Clark,C.Berner,S.McCandlish,A.Radford,I.Sutskever,andD.Amodei. Languagemodels
+arefew-shotlearners,2020.
+P.Clark,I.Cowhey,O.Etzioni,T.Khot,A.Sabharwal,C.Schoenick,andO.Tafjord. Thinkyouhave
+solvedquestionanswering? tryarc,theai2reasoningchallenge. ArXiv,abs/1803.05457,2018.
+P.Clark,O.Etzioni,D.Khashabi,T.Khot,B.D.Mishra,K.Richardson,A.Sabharwal,C.Schoenick,
+O.Tafjord,N.Tandon,S.Bhakthavatsalam,D.Groeneveld,M.Guerquin,andM.Schmitz.From’f’
+to’a’onthen.y.regentsscienceexams: Anoverviewofthearistoproject. ArXiv,abs/1909.01958,
+2019.
+J. Devlin, M.-W. Chang, K. Lee, and K. Toutanova. Bert: Pre-training of deep bidirectional
+transformersforlanguageunderstanding. ArXiv,abs/1810.04805,2019.
+R.Geirhos,J.-H.Jacobsen,C.Michaelis,R.Zemel,W.Brendel,M.Bethge,andF.A.Wichmann.
+Shortcutlearningindeepneuralnetworks,2020.
+C.Guo,G.Pleiss,Y.Sun,andK.Q.Weinberger. Oncalibrationofmodernneuralnetworks. ICML,
+2017.
+D.Hendrycks,M.Mazeika,andT.Dietterich. Deepanomalydetectionwithoutlierexposure. ICLR,
+2019a.
+D.Hendrycks,K.Zhao,S.Basart,J.Steinhardt,andD.Song. Naturaladversarialexamples. ArXiv,
+abs/1907.07174,2019b.
+D.Hendrycks,C.Burns,S.Basart,A.Critch,J.Li,D.Song,andJ.Steinhardt. Aligningaiwith
+sharedhumanvalues,2020.
+L.Huang,R.L.Bras,C.Bhagavatula,andY.Choi. Cosmosqa: Machinereadingcomprehension
+withcontextualcommonsensereasoning,2019.
+J.Kaplan,S.McCandlish,T.Henighan,T.B.Brown,B.Chess,R.Child,S.Gray,A.Radford,J.Wu,
+andD.Amodei. Scalinglawsforneurallanguagemodels,2020.
+D.Khashabi,T.Khot,A.Sabharwal,O.Tafjord,P.Clark,andH.Hajishirzi. Unifiedqa: Crossing
+formatboundarieswithasingleqasystem,2020.
+T.Khot,P.Clark,M.Guerquin,P.Jansen,andA.Sabharwal. Qasc: Adatasetforquestionanswering
+viasentencecomposition,2019.
+A.Kumar,P.Liang,andT.Ma. Verifieduncertaintycalibration,2019.
+9
+PublishedasaconferencepaperatICLR2021
+G.Lai,Q.Xie,H.Liu,Y.Yang,andE.Hovy. Race: Large-scalereadingcomprehensiondatasetfrom
+examinations,2017.
+Z. Lan, M. Chen, S. Goodman, K. Gimpel, P. Sharma, and R. Soricut. Albert: A lite bert for
+self-supervisedlearningoflanguagerepresentations. ArXiv,abs/1909.11942,2020.
+Y. Liu, M. Ott, N. Goyal, J. Du, M. Joshi, D. Chen, O. Levy, M. Lewis, L. Zettlemoyer, and
+V.Stoyanov. Roberta: Arobustlyoptimizedbertpretrainingapproach. ArXiv,abs/1907.11692,
+2019.
+T.Mihaylov,P.Clark,T.Khot,andA.Sabharwal. Canasuitofarmorconductelectricity? anew
+datasetforopenbookquestionanswering. InEMNLP,2018.
+Y.Ovadia,E.Fertig,J.Ren,Z.Nado,D.Sculley,S.Nowozin,J.V.Dillon,B.Lakshminarayanan,
+andJ.Snoek. Canyoutrustyourmodel’suncertainty? Evaluatingpredictiveuncertaintyunder
+datasetshift. NeurIPS,2019.
+F. Petroni, T. Rocktäschel, P. Lewis, A. Bakhtin, Y. Wu, A. H. Miller, and S. Riedel. Language
+modelsasknowledgebases?,2019.
+A.Radford,J.Wu,R.Child,D.Luan,D.Amodei,andI.Sutskever.Languagemodelsareunsupervised
+multitasklearners. 2019.
+C. Raffel, N. Shazeer, A. Roberts, K. Lee, S. Narang, M. Matena, Y. Zhou, W. Li, and P. J. Liu.
+Exploringthelimitsoftransferlearningwithaunifiedtext-to-texttransformer,2019.
+M.Richardson,C.J.Burges,andE.Renshaw. MCTest: Achallengedatasetfortheopen-domain
+machinecomprehensionoftext. InProceedingsofthe2013ConferenceonEmpiricalMethodsin
+NaturalLanguageProcessing,pages193–203,Seattle,Washington,USA,Oct.2013.Association
+forComputationalLinguistics.
+A. B. Sai, A. K. Mohankumar, and M. M. Khapra. A survey of evaluation metrics used for nlg
+systems. 2020.
+A.Turing. Computingmachineryandintelligence. 1950.
+A.Wang,A.Singh,J.Michael,F.Hill,O.Levy,andS.R.Bowman. Glue: Amulti-taskbenchmark
+andanalysisplatformfornaturallanguageunderstanding,2018.
+A.Wang,Y.Pruksachatkun,N.Nangia,A.Singh,J.Michael,F.Hill,O.Levy,andS.R.Bowman.
+Superglue: Astickierbenchmarkforgeneral-purposelanguageunderstandingsystems,2019.
+R.Zellers,A.Holtzman,Y.Bisk,A.Farhadi,andY.Choi. Hellaswag: Canamachinereallyfinish
+yoursentence?,2019.
+R.Zellers,A.Holtzman,E.Clark,L.Qin,A.Farhadi,andY.Choi. Evaluatingmachinesbytheir
+real-worldlanguageuse,2020.
+10
+PublishedasaconferencepaperatICLR2021
+A ADDITIONAL ANALYSIS
+This appendix includes figures with sorted results (Figure 9), few-shot examples vs. accuracy
+(Figure 10), and few-shot calibration (Figure 11). It also includes sections on fine-tuning, error
+analysis,andformatsensitivity.
+GPT-3 Results UnifiedQA Results
+US Foreign Policy Marketing
+High School Psychology High School Gov't and Politics
+Miscellaneous Management
+Marketing High School Psychology
+High School Gov't and Politics Business Ethics
+High School Geography Jurisprudence
+Computer Security High School Geography
+Management International Law
+High School World History Sociology
+International Law Computer Security
+World Religions US Foreign Policy
+Jurisprudence Miscellaneous
+Human Sexuality High School World History
+High School European History High School US History
+Sociology High School European History
+High School US History Logical Fallacies
+Prehistory Moral Disputes
+Security Studies World Religions
+Philosophy Public Relations
+Human Aging Philosophy
+Electrical Engineering High School Microeconomics
+Astronomy Human Aging
+Public Relations High School Biology
+High School Biology Clinical Knowledge
+Logical Fallacies Prehistory
+Clinical Knowledge High School Comp Sci
+Anatomy Nutrition
+College Medicine Human Sexuality
+Nutrition Security Studies
+Business Ethics Professional Psychology
+College Comp Sci Electrical Engineering
+Virology High School Macroeconomics
+College Biology Astronomy
+Professional Psychology Professional Medicine
+Moral Disputes Virology
+High School Microeconomics College Medicine
+High School Macroeconomics Conceptual Physics
+Medical Genetics College Comp Sci
+High School Comp Sci Anatomy
+Global Facts High School Physics
+Conceptual Physics College Biology
+Professional Medicine Professional Accounting
+College Mathematics Medical Genetics
+Professional Law Professional Law
+Professional Accounting Global Facts
+High School Chemistry High School Chemistry
+Econometrics College Mathematics
+Machine Learning Elementary Mathematics
+High School Statistics College Chemistry
+Abstract Algebra High School Statistics
+Elementary Mathematics Machine Learning
+Formal Logic College Physics
+High School Mathematics High School Mathematics
+High School Physics Econometrics
+College Physics Abstract Algebra
+Moral Scenarios Formal Logic
+College Chemistry Random Chance Moral Scenarios Random Chance
+0 20 40 60 80 100 0 10 20 30 40 50 60 70 80 90 100
+Accuracy (%) Accuracy (%)
+Figure9:OntheleftareGPT-3fewshotaccuraciesforallofthe57tasks. OntherightareUnifiedQA
+transferaccuraciesforallofthe57tasks. Forbothmodels,capabilitiesarelopsided.
+A.1 ANALYSISWITHMOREFINE-TUNEDMODELS
+Weprimarilyanalyzedmodelswithmorethan10billionparametersinthemainbodyofthepaper.
+Forthissection,weanalyzesmallermodelsincludingRoBERTa-base(125millionparameters)(Liu
+11
+PublishedasaconferencepaperatICLR2021
+etal.,2019),ALBERT-xxlarge(223millionparameters)(Lanetal.,2020),andGPT-2(1,558million
+parameters)(Radfordetal.,2019). Modelsarefine-tunedtopredictoneoffourclassesusingthe
+UnifiedQAMCQquestionsandusingourdev+valset. Wetestonourmultitasktestset.
+Weobservethatthesesmallermodelscanattainbetter-than-randomaccuracy. RoBERTa-baseattains
+anoverallaccuracyof27.9%,with27.9%accuracyforthehumanities,28.8%forsocialsciences,
+27.0%forSTEM,and27.7%forother. ALBERT-xxlargeattainsanaccuracyof27.1%,with27.2%
+accuracyforthehumanities,25.7%forthesocialsciences,27.7%forSTEM,and27.9%forother.
+GPT-2attainsanaccuracyof32.4%,with32.8%accuracyforthehumanities,33.3%forthesocial
+sciences,30.2%forSTEM,and33.1%forother.
+ComparethistoUnifiedQA’ssmallestvariant,whichhasjust60millionparametersandapproximately
+29.3%accuracy. ItobtainshigheraccuracythanRoBERTaandALBERT,eventhoughithasfewer
+parameters. This suggests that its larger pretraining dataset enables higher accuracy. Likewise,
+UnifiedQAwith3billionparametersattains43.7%,whilethesimilarlysizedGPT-2modelwith1.5
+billionparametersattains32.4%accuracy. ThisagainsuggeststhatT5’slargerpretrainingdataset
+size(andthereforeUnifiedQA’spretrainingdatasetsize)canincreaseaccuracy.
+A.2 ERRORANALYSIS
+WequalitativelyanalyzewhenGPT-3makeshighconfidencemistakes. Wefindthatwhilemanyof
+thesemistakeswereclearlywrong,manyweremistakesthatahumanmightmake. Forexample,
+onequestionitgotwrongwas“Howmanychromosomesdoallhumansomaticcellscontain?” The
+correctansweris46,whilefew-shotGPT-3predicted23withconfidence97.5%. Thisanswerwould
+havebeencorrectifthequestionaskedaboutthenumberofpairsofchromosomes. Similarly,many
+ofitsotherhighconfidencemistakeswerealsocorrectanswerstoslightlydifferentquestions.
+A.3 FORMATSENSITIVITY
+While different question formatting choices often lead to similar GPT-3 accuracies, we find that
+UnifiedQAismoresensitive. UnifiedQA’sinputformatisoftheform
+QUESTION1 \\n (A) CHOICE1 (B) CHOICE2 (C) CHOICE3 (D) CHOICE4</s>
+wherequestionsandchoicesarenormalizedandmadelowercase. Ifweremovethe</s>fromthe
+input,accuracydeclinesbyseveralpercentagepoints.
+12
+PublishedasaconferencepaperatICLR2021
+50
+45
+40
+35
+30
+0-Shot 1-Shot 2-Shot 3-Shot 4-Shot 5-Shot
+Number of Examples in Context
+)%(
+ycaruccA
+GPT-3 Multitask Accuracy vs.
+Number of Examples in Context 70
+60
+50
+40
+30
+20
+20 30 40 50 60 70
+Confidence (%)
+Figure10: Asthenumberoffew-shotinstruction
+examplesincreases,theaccuracymonotonically
+increases. Notably,zero-shotperformanceisonly
+somewhatlowerthan5-shotaccuracy.
+)%(
+ycaruccA
+GPT-3 Few-Shot Calibration
+Figure11: Whilemodelsaremorecalibratedin
+afew-shotsettingthanazero-shotsetting, they
+arestillmiscalibrated,withgapbetweenaccuracy
+and confidence reaching up to 14%. Here the
+correlationbetweenconfidenceandaccuracyis
+r =0.81,comparedtor =0.63inthezero-shot
+setting.
+B TEST DETAILS
+B.1 TASKDESCRIPTIONSANDEXAMPLES
+WeprovideanalysisofquestionlengthanddifficultyinFigure12. Welistalltasksandthetopics
+theytestinTable2. WealsoprovideanexampleforeachtaskstartingwithFigure14.
+1.0
+0.8
+0.6
+0.4
+0.2
+0.0
+0 500 1000 1500 2000 2500 3000
+Question Length (Characters)
+lebaL
+eurT
+fo
+ecnedifnoC
+GPT-3 Question Length and Correctness
+1.0
+0.8
+0.6
+0.4
+0.2
+0.0
+0 250 500 750 1000 1250
+Average Question Length (Characters)
+ycaruccA
+tcejbuS
+GPT-3 Average Question Length and
+Accuracy by Subject
+Figure12: Figuresontherelationbetweenquestiondifficultyandquestionlength. Forquestions
+longerthanatweet(280characters),thecorrelationbetweenquestionlengthandtruelabelconfidence
+isslightlypositive. Thisshowsthatlongerquestionsarenotnecessarilyharder.
+B.2 EXACTQUESTIONANDANSWERCONTAMINATION
+Sincelanguagemodelstrainonvasttextcorpora,thereissomechancethattheyhaveseentheexact
+question and answer during pretraining. If they memorized the exact question and answer, then
+theywouldattainhigheraccuracythantheirtrueability. Likewise,aquestion’sentropywouldbe
+especiallylowifitwerememorized. Memorizedquestionsandanswersshouldhavelowentropyand
+13
+PublishedasaconferencepaperatICLR2021
+highaccuracy. However,inFigure13,weseethataccuracyandquestionentropyarenotpositively
+correlated,suggestingthatthetest’slow-entropyquestionsdonotcorrespondtomemorized(and
+therebycorrectlypredicted)answers. Thissuggeststhatourexactquestionswerenotmemorized.
+However,duringpretrainingmodelsencounteredtextrelatedtoourquestionsthroughprocessing
+Wikipedia. WealsonotethatmostofourquestionscamefromPDFsorwebsiteswherequestionsand
+answersareonseparatepages.
+SeeBrownetal.(2020)forapreviousdiscussionofcontaminationshowingthatthephenomena
+hardlyaffectsperformance. Toreducetheprobabilitythatfuturemodelsencounterexactquestions
+duringtest-time,wewillprovidealistofquestionsources.
+60
+50
+40
+30
+20
+2.8 2.6 2.4 2.2 2.0 1.8
+Log Probability Per Token
+)%(
+ycaruccA
+GPT-3 Zero-Shot
+Prompt Compression and Accuracy
+70
+60
+50
+40
+30
+20
+2.4 2.2 2.0 1.8 1.6 1.4 1.2
+Log Probability Per Token
+)%(
+ycaruccA
+GPT-3 Few-Shot
+Prompt Compression and Accuracy
+Figure13: Theaveragelogprobabilityofthequestion(withoutanswer)isnotstronglypositively
+correlatedwithaccuracy,allelseequal. Eachpointcorrespondstoatask. Higherlogprobability
+indicateshighercompression,andespeciallyhighlogprobabilitywouldsuggestmemorization. In
+the zero-shot question prompt, the correlation between average log probability and accuracy is
+r =−0.43,andforthefew-shotsettingthecorrelationisr =−0.56.
+14
+PublishedasaconferencepaperatICLR2021
+Task TestedConcepts Supercategory
+AbstractAlgebra Groups,rings,fields,vectorspaces,... STEM
+Anatomy Centralnervoussystem,circulatorysystem,... STEM
+Astronomy Solarsystem,galaxies,asteroids,... STEM
+BusinessEthics Corporateresponsibility,stakeholders,regulation,... Other
+ClinicalKnowledge Spotdiagnosis,joints,abdominalexamination,... Other
+CollegeBiology Cellularstructure,molecularbiology,ecology,... STEM
+CollegeChemistry Analytical,organic,inorganic,physical,... STEM
+CollegeComputerScience Algorithms,systems,graphs,recursion,... STEM
+CollegeMathematics Differentialequations,realanalysis,combinatorics,... STEM
+CollegeMedicine Introductorybiochemistry,sociology,reasoning,... Other
+CollegePhysics Electromagnetism,thermodynamics,specialrelativity,... STEM
+ComputerSecurity Cryptography,malware,sidechannels,fuzzing,... STEM
+ConceptualPhysics Newton’slaws,rotationalmotion,gravity,sound,... STEM
+Econometrics Volatility,long-runrelationships,forecasting,... SocialSciences
+ElectricalEngineering Circuits,powersystems,electricaldrives,... STEM
+ElementaryMathematics Wordproblems,multiplication,remainders,rounding,... STEM
+FormalLogic Propositions,predicatelogic,first-orderlogic,... Humanities
+GlobalFacts Extremepoverty,literacyrates,lifeexpectancy,... Other
+HighSchoolBiology Naturalselection,heredity,cellcycle,Krebscycle,... STEM
+HighSchoolChemistry Chemicalreactions,ions,acidsandbases,... STEM
+HighSchoolComputerScience Arrays,conditionals,iteration,inheritance,... STEM
+HighSchoolEuropeanHistory Renaissance,reformation,industrialization,... Humanities
+HighSchoolGeography Populationmigration,ruralland-use,urbanprocesses,... SocialSciences
+HighSchoolGov’tandPolitics Branchesofgovernment,civilliberties,politicalideologies,... SocialSciences
+HighSchoolMacroeconomics Economicindicators,nationalincome,internationaltrade,... SocialSciences
+HighSchoolMathematics Pre-algebra,algebra,trigonometry,calculus,... STEM
+HighSchoolMicroeconomics Supplyanddemand,imperfectcompetition,marketfailure,... SocialSciences
+HighSchoolPhysics Kinematics,energy,torque,fluidpressure,... STEM
+HighSchoolPsychology Behavior,personality,emotions,learning,... SocialSciences
+HighSchoolStatistics Randomvariables,samplingdistributions,chi-squaretests,... STEM
+HighSchoolUSHistory CivilWar,theGreatDepression,TheGreatSociety,... Humanities
+HighSchoolWorldHistory Ottomanempire,economicimperialism,WorldWarI,... Humanities
+HumanAging Senescence,dementia,longevity,personalitychanges,... Other
+HumanSexuality Pregnancy,sexualdifferentiation,sexualorientation,... SocialSciences
+InternationalLaw Humanrights,sovereignty,lawofthesea,useofforce,... Humanities
+Jurisprudence Naturallaw,classicallegalpositivism,legalrealism,... Humanities
+LogicalFallacies NotrueScotsman,baseratefallacy,compositionfallacy,... Humanities
+MachineLearning SVMs,VCdimension,deeplearningarchitectures,... STEM
+Management Organizing,communication,organizationalstructure,... Other
+Marketing Segmentation,pricing,marketresearch,... Other
+MedicalGenetics Genesandcancer,commonchromosomedisorders,... Other
+Miscellaneous Agriculture,Fermiestimation,popculture,... Other
+MoralDisputes Freedomofspeech,addiction,thedeathpenalty,... Humanities
+MoralScenarios Detectingphysicalviolence,stealing,externalities,... Humanities
+Nutrition Metabolism,water-solublevitamins,diabetes,... Other
+Philosophy Skepticism,phronesis,skepticism,Singer’sDrowningChild,... Humanities
+Prehistory Neanderthals,Mesoamerica,extinction,stonetools,... Humanities
+ProfessionalAccounting Auditing,reporting,regulation,valuation,... Other
+ProfessionalLaw Torts,criminallaw,contracts,property,evidence,... Humanities
+ProfessionalMedicine Diagnosis,pharmacotherapy,diseaseprevention,... Other
+ProfessionalPsychology Diagnosis,biologyandbehavior,lifespandevelopment,... SocialSciences
+PublicRelations Mediatheory,crisismanagement,intelligencegathering,... SocialSciences
+SecurityStudies Environmentalsecurity,terrorism,weaponsofmassdestruction,... SocialSciences
+Sociology Socialization,citiesandcommunity,inequalityandwealth,... SocialSciences
+USForeignPolicy Softpower,ColdWarforeignpolicy,isolationism,... SocialSciences
+Virology Epidemiology,coronaviruses,retroviruses,herpesviruses,... Other
+WorldReligions Judaism,Christianity,Islam,Buddhism,Jainism,... Humanities
+Table2: Summaryofall57tasks.
+15
+PublishedasaconferencepaperatICLR2021
+FindallcinZ suchthatZ [x]/(x2+c)isafield.
+3 3
+(A)0 (B)1 (C)2 (D)3
+Figure14: AnAbstractAlgebraexample.
+Whatistheembryologicaloriginofthehyoidbone?
+(A)Thefirstpharyngealarch
+(B)Thefirstandsecondpharyngealarches
+(C)Thesecondpharyngealarch
+(D)Thesecondandthirdpharyngealarches
+Figure15: AnAnatomyexample.
+Whyisn’tthereaplanetwheretheasteroidbeltislocated?
+(A)Aplanetonceformedherebutitwasbrokenapartbyacatastrophiccollision.
+(B)Therewasnotenoughmaterialinthispartofthesolarnebulatoformaplanet.
+(C)Therewastoomuchrockymaterialtoformaterrestrialplanetbutnotenoughgaseousmaterial
+toformajovianplanet.
+(D)ResonancewithJupiterpreventedmaterialfromcollectingtogethertoformaplanet.
+Figure16: AnAstronomyexample.
+ThreecontrastingtacticsthatCSO’scanengageintomeettheiraimsare whichtypi-
+callyinvolvesresearchandcommunication, ,whichmayinvolvephysicallyattackinga
+company’soperationsor ,ofteninvolvingsomeformof .
+(A)Non-violentdirectaction,Violentdirectaction,Indirectaction,Boycott
+(B)Indirectaction,Instrumentalaction,Non-violentdirectaction,Informationcampaign
+(C)Indirectaction,Violentdirectaction,Non-violentdirect-actionBoycott.
+(D)Non-violentdirectaction,Instrumentalaction,Indirectaction,Informationcampaign
+Figure17: ABusinessEthicsexample.
+Howmanyattemptsshouldyoumaketocannulateapatientbeforepassingthejobontoasenior
+colleague?
+(A)4 (B)3 (C)2 (D)1
+Figure18: AClinicalKnowledgeexample.
+Inagivenpopulation,1outofevery400peoplehasacancercausedbyacompletelyrecessive
+allele,b. AssumingthepopulationisinHardy-Weinbergequilibrium,whichofthefollowingis
+theexpectedproportionofindividualswhocarrytheballelebutarenotexpectedtodevelopthe
+cancer?
+(A)1/400 (B)19/400 (C)20/400 (D)38/400
+Figure19: ACollegeBiologyexample.
+WhichofthefollowingstatementsaboutthelanthanideelementsisNOTtrue?
+(A)Themostcommonoxidationstateforthelanthanideelementsis+3.
+(B)Lanthanidecomplexesoftenhavehighcoordinationnumbers(>6).
+(C)Allofthelanthanideelementsreactwithaqueousacidtoliberatehydrogen.
+(D)TheatomicradiiofthelanthanideelementsincreaseacrosstheperiodfromLatoLu.
+Figure20: ACollegeChemistryexample.
+16
+PublishedasaconferencepaperatICLR2021
+Consideracomputerdesigninwhichmultipleprocessors, eachwithaprivatecachememory,
+shareglobalmemoryusingasinglebus. Thisbusisthecriticalsystemresource. Eachprocessor
+canexecuteoneinstructionevery500nanosecondsaslongasmemoryreferencesaresatisfied
+byitslocalcache. Whenacachemissoccurs,theprocessorisdelayedforanadditional2,000
+nanoseconds. Duringhalfofthisadditionaldelay,thebusisdedicatedtoservingthecachemiss.
+Duringtheotherhalf,theprocessorcannotcontinue,butthebusisfreetoservicerequestsfrom
+otherprocessors. Onaverage,eachinstructionrequires2memoryreferences. Onaverage,cache
+missesoccuron1percentofreferences. Whatproportionofthecapacityofthebuswouldasingle
+processorconsume,ignoringdelaysduetocompetitionfromotherprocessors?
+(A)1/50 (B)1/27 (C)1/25 (D)2/27
+Figure21: ACollegeComputerScienceexample.
+LetAbeareal2×2matrix. Whichofthefollowingstatementsmustbetrue?
+I.AlloftheentriesofA2arenonnegative.
+II.ThedeterminantofA2isnonnegative.
+III.IfAhastwodistincteigenvalues,thenA2hastwodistincteigenvalues.
+(A)Ionly (B)IIonly (C)IIIonly (D)IIandIIIonly
+Figure22: ACollegeMathematicsexample.
+In a genetic test of a newborn, a rare genetic disorder is found that has X-linked recessive
+transmission. Which of the following statements is likely true regarding the pedigree of this
+disorder?
+(A)Alldescendantsonthematernalsidewillhavethedisorder.
+(B)Femaleswillbeapproximatelytwiceasaffectedasmalesinthisfamily.
+(C)Alldaughtersofanaffectedmalewillbeaffected.
+(D)Therewillbeequaldistributionofmalesandfemalesaffected.
+Figure23: ACollegeMedicineexample.
+OneendofaNichromewireoflength2Landcross-sectionalareaAisattachedtoanendof
+anotherNichromewireoflengthLandcross-sectionalarea2A.Ifthefreeendofthelongerwire
+isatanelectricpotentialof8.0volts,andthefreeendoftheshorterwireisatanelectricpotential
+of1.0volt,thepotentialatthejunctionofthetwowiresismostnearlyequalto
+(A)2.4V
+(B)3.3V
+(C)4.5V
+(D)5.7V
+Figure24: ACollegePhysicsexample.
+Whyisitthatanti-virusscannerswouldnothavefoundanexploitationofHeartbleed?
+(A)It’savacuousquestion: Heartbleedonlyreadsoutsideabuffer,sothereisnopossibleexploit
+(B)Anti-virusscannerstendtolookforvirusesandothermalicious
+(C)Heartbleedattackstheanti-virusscanneritself
+(D)Anti-virusscannerstendtolookforvirusesandothermaliciouscode,butHeartbleed
+exploitsstealsecretswithoutinjectinganycode
+Figure25: AComputerSecurityexample.
+Amodelairplanefliesslowerwhenflyingintothewindandfasterwithwindatitsback. When
+launchedatrightanglestothewind,acrosswind,itsgroundspeedcomparedwithflyinginstill
+airis
+(A)thesame (B)greater (C)less (D)eithergreaterorlessdependingonwindspeed
+Figure26: AConceptualPhysicsexample.
+17
+PublishedasaconferencepaperatICLR2021
+ConsiderthefollowingAR(1)modelwiththedisturbanceshavingzeromeanandunitvariance
+y =0.2+0.4y +u
+t t−1 t
+The(unconditional)meanofywillbegivenby
+(A)0.2 (B)0.4 (C)0.5 (D)0.33
+Figure27: AnEconometricsexample.
+A point pole has a strength of 4π × 10−4 weber. The force in newtons on a point pole of
+4π×1.5×10−4weberplacedatadistanceof10cmfromitwillbe
+(A)15N. (B)20N. (C)7.5N. (D)3.75N.
+Figure28: AnElectricalEngineeringexample.
+Atotalof30playerswillplaybasketballatapark. Therewillbeexactly5playersoneachteam.
+Whichstatementcorrectlyexplainshowtofindthenumberofteamsneeded?
+(A)Add5to30tofind35teams.
+(B)Divide30by5tofind6teams.
+(C)Multiply30and5tofind150teams.
+(D)Subtract5from30tofind25teams.
+Figure29: AnElementaryMathematicsexample.
+Determinewhetherthestatementsarelogicallyequivalentorcontradictory. Ifneither,determine
+whethertheyareconsistentorinconsistent.
+E ⊃(F ·E)and∼E·F
+(A)Logicallyequivalent
+(B)Contradictory
+(C)Neitherlogicallyequivalentnorcontradictory,butconsistent
+(D)Inconsistent
+Figure30: AFormalLogicexample.
+Asof2017, howmanyoftheworld’s1-year-oldchildrentodayhavebeenvaccinatedagainst
+somedisease?
+(A)80%
+(B)60%
+(C)40%
+(D)20%
+Figure31: AGlobalFactsexample.
+Homologousstructuresareoftencitedasevidencefortheprocessofnaturalselection. Allofthe
+followingareexamplesofhomologousstructuresEXCEPT
+(A)thewingsofabirdandthewingsofabat
+(B)theflippersofawhaleandthearmsofaman
+(C)thepectoralfinsofaporpoiseandtheflippersofaseal
+(D)theforelegsofaninsectandtheforelimbsofadog
+Figure32: AHighSchoolBiologyexample.
+Fromthesolubilityrules,whichofthefollowingistrue?
+(A)Allchlorides,bromides,andiodidesaresoluble
+(B)Allsulfatesaresoluble
+(C)Allhydroxidesaresoluble
+(D)Allammonium-containingcompoundsaresoluble
+Figure33: AHighSchoolChemistryexample.
+18
+PublishedasaconferencepaperatICLR2021
+Alistofnumbershasnelements,indexedfrom1ton. Thefollowingalgorithmisintendedto
+displaythenumberofelementsinthelistthathaveavaluegreaterthan100. Thealgorithmuses
+thevariablescountandposition. Steps3and4aremissing.
+Step1: Setcountto0andpositionto1.
+Step2: Ifthevalueoftheelementatindexpositionisgreater
+than100,increasethevalueofcountby1.
+Step3: (missingstep)
+Step4: (missingstep)
+Step5: Displaythevalueofcount.
+Whichofthefollowingcouldbeusedtoreplacesteps3and4sothatthealgorithmworksas
+intended?
+(A)Step3: Increasethevalueofpositionby1.
+Step4: Repeatsteps2and3untilthevalueofcountisgreaterthan100.
+(B)Step3: Increasethevalueofpositionby1.
+Step4: Repeatsteps2and3untilthevalueofpositionisgreaterthann.
+(C)Step3: Repeatstep2untilthevalueofcountisgreaterthan100.
+Step4: Increasethevalueofpositionby1.
+(D)Step3: Repeatstep2untilthevalueofpositionisgreaterthann.
+Step4: Increasethevalueofcountby1.
+Figure34: AHighSchoolComputerScienceexample.
+Thisquestionreferstothefollowinginformation.
+Albeittheking’sMajestyjustlyandrightfullyisandoughttobethesupremeheadoftheChurch
+ofEngland,andsoisrecognizedbytheclergyofthisrealmintheirconvocations,yetnevertheless,
+forcorroborationandconfirmationthereof,andforincreaseofvirtueinChrist’sreligionwithin
+thisrealmofEngland,andtorepressandextirpateallerrors,heresies,andotherenormitiesand
+abusesheretoforeusedinthesame,beitenacted,byauthorityofthispresentParliament,thatthe
+king,oursovereignlord,hisheirsandsuccessors,kingsofthisrealm,shallbetaken,accepted,
+andreputedtheonlysupremeheadinearthoftheChurchofEngland,calledAnglicansEcclesia;
+andshallhaveandenjoy, annexedandunitedtotheimperialcrownofthisrealm, aswellthe
+titleandstylethereof,asallhonors,dignities,preeminences,jurisdictions,privileges,authorities,
+immunities,profits,andcommoditiestothesaiddignityofthesupremeheadofthesameChurch
+belongingandappertaining;andthatoursaidsovereignlord,hisheirsandsuccessors,kingsof
+thisrealm,shallhavefullpowerandauthorityfromtimetotimetovisit,repress,redress,record,
+order, correct, restrain, and amend all such errors, heresies, abuses, offenses, contempts, and
+enormities,whatsoevertheybe,whichbyanymannerofspiritualauthorityorjurisdictionought
+ormaylawfullybereformed,repressed,ordered,redressed,corrected,restrained,oramended,
+most to the pleasure of Almighty God, the increase of virtue in Christ’s religion, and for the
+conservationofthepeace,unity,andtranquilityofthisrealm;anyusage,foreignland,foreign
+authority,prescription,oranyotherthingorthingstothecontraryhereofnotwithstanding.
+EnglishParliament,ActofSupremacy,1534
+From the passage, one may infer that the English Parliament wished to argue that the Act of
+Supremacywould
+(A)givetheEnglishkinganewpositionofauthority
+(B)givethepositionofheadoftheChurchofEnglandtoHenryVIIIaloneandexcludehisheirs
+(C)establishCalvinismastheonetruetheologyinEngland
+(D)endvariousformsofcorruptionplaguingtheChurchinEngland
+Figure35: AHighSchoolEuropeanHistoryexample.
+Duringthethirdstageofthedemographictransitionmodel,whichofthefollowingistrue?
+(A)Birthratesincreaseandpopulationgrowthrateislessrapid.
+(B)Birthratesdeclineandpopulationgrowthrateislessrapid.
+(C)Birthratesincreaseandpopulationgrowthrateincreases.
+(D)Birthratesdecreaseandpopulationgrowthrateincreases.
+Figure36: AHighSchoolGeographyexample.
+19
+PublishedasaconferencepaperatICLR2021
+WhichofthefollowingbeststatesanargumentmadebyJamesMadisoninTheFederalistnumber
+10?
+(A)Honestpoliticianscanpreventfactionsfromdeveloping.
+(B)Factionsaremorelikelytooccurinlargerepublicsthaninsmallones.
+(C)Thenegativeeffectsoffactionalismcanbereducedbyarepublicangovernment.
+(D)Freeelectionsarethepeople’sbestdefenseagainstfactionalism.
+Figure37: AHighSchoolGovernmentandPoliticsexample.
+WhichofthefollowingisnotincludedintheU.S.GDP?
+(A)TheU.S.militaryopensanewbaseinaforeigncountrywith1000U.S.personnel.
+(B)JapaneseconsumersbuythousandsofCDsproducedintheUnitedStates.
+(C)AnAmericanpopsingerperformsasold-outconcertinParis.
+(D)AFrenchtheatricalproductiontoursdozensofAmericancities.
+Figure38: AHighSchoolMacroeconomicsexample.
+Joewasinchargeoflightsforadance. Theredlightblinkseverytwoseconds,theyellowlight
+everythreeseconds,andthebluelighteveryfiveseconds. Ifweincludetheverybeginningand
+veryendofthedance,howmanytimesduringasevenminutedancewillallthelightscomeonat
+thesametime? (Assumethatallthreelightsblinksimultaneouslyattheverybeginningofthe
+dance.)
+(A)3
+(B)15
+(C)6
+(D)5
+Figure39: AHighSchoolMathematicsexample.
+Ifthegovernmentsubsidizesproducersinaperfectlycompetitivemarket,then
+(A)thedemandfortheproductwillincrease
+(B)thedemandfortheproductwilldecrease
+(C)theconsumersurpluswillincrease
+(D)theconsumersurpluswilldecrease
+Figure40: AHighSchoolMicroeconomicsexample.
+Apointcharge,Q=+1mC,isfixedattheorigin. Howmuchworkisrequiredtomoveacharge,
+Q=+8µC,fromthepoint(0,4meters)tothepoint(3meters,0)?
+(A)3.5J
+(B)6.0J
+(C)22.5J
+(D)40J
+Figure41: AHighSchoolPhysicsexample.
+Whileswimmingintheocean,Ivanisfrightenedbyadarkshadowinthewaterevenbeforehe
+hasthechancetoidentifywhattheshadowis. Thesynapticconnectionstakingplaceduringthis
+incidentoffrightarebestdescribedbywhichofthefollowing?
+(A)Messagesaresentfromthethalamusdirectlytotheamygdala.
+(B)Messagesaresentfromthethalamustothe“what”and“where”pathways.
+(C)Messagesaresentfromtheparasympatheticnervoussystemtothecerebralcortex.
+(D)Messagesaresentfromthefrontallobestothepituitarygland.
+Figure42: AHighSchoolPsychologyexample.
+20
+PublishedasaconferencepaperatICLR2021
+Jonathanobtainedascoreof80onastatisticsexam,placinghimatthe90thpercentile. Suppose
+fivepointsareaddedtoeveryone’sscore. Jonathan’snewscorewillbeatthe
+(A)80thpercentile.
+(B)85thpercentile.
+(C)90thpercentile.
+(D)95thpercentile.
+Figure43: AHighSchoolStatisticsexample.
+Thisquestionreferstothefollowinginformation.
+“Societyineverystateisablessing,butgovernmenteveninitsbeststateisbutanecessaryevil;in
+itsworststateanintolerableone;forwhenwesuffer,orareexposedtothesamemiseriesbya
+government,whichwemightexpectinacountrywithoutgovernment,ourcalamityisheightened
+byreflectingthatwefurnishthemeansbywhichwesuffer. Government,likedress,isthebadge
+oflostinnocence;thepalacesofkingsarebuiltontheruinsofthebowersofparadise. Forwere
+the impulses of conscience clear, uniform, and irresistibly obeyed, man would need no other
+lawgiver;butthatnotbeingthecase,hefindsitnecessarytosurrenderupapartofhispropertyto
+furnishmeansfortheprotectionoftherest;andthisheisinducedtodobythesameprudence
+whichineveryothercaseadviseshimoutoftwoevilstochoosetheleast. Wherefore,security
+beingthetruedesignandendofgovernment,itunanswerablyfollowsthatwhateverformthereof
+appearsmostlikelytoensureittous,withtheleastexpenseandgreatestbenefit,ispreferableto
+allothers.”
+ThomasPaine,CommonSense,1776
+Whichofthefollowing“miseries”alludedtoaboveweremostcondemnedbyAnti-Federalistsof
+thepost-Revolutionaryera?
+(A)OrganizedresponsetoBacon’sRebellion.
+(B)FederalresponsetoShays’sRebellion.
+(C)FederalresponsetotheWhiskeyRebellion.
+(D)FederalresponsetoPontiac’sRebellion.
+Figure44: AHighSchoolUSHistoryexample.
+Thisquestionreferstothefollowinginformation.
+“Therealgrievanceoftheworkeristheinsecurityofhisexistence; heisnotsurethathewill
+alwayshavework,heisnotsurethathewillalwaysbehealthy,andheforeseesthathewillone
+daybeoldandunfittowork. Ifhefallsintopoverty,evenifonlythroughaprolongedillness,he
+isthencompletelyhelpless,lefttohisowndevices,andsocietydoesnotcurrentlyrecognizeany
+realobligationtowardshimbeyondtheusualhelpforthepoor,evenifhehasbeenworkingall
+thetimeeversofaithfullyanddiligently. Theusualhelpforthepoor,however,leavesalottobe
+desired,especiallyinlargecities,whereitisverymuchworsethaninthecountry.”
+OttovonBismarck,1884
+OttovonBismarcklikelymadethisspeechinreactiontowhichofthefollowingissues?
+(A)Socialacceptanceofchildlabor.
+(B)DeclininglifeexpectancyinGermany.
+(C)CriticismsofGermantradetariffs.
+(D)Negativeeffectsattributedtoindustrialcapitalism.
+Figure45: AHighSchoolWorldHistoryexample.
+Allotherthingsbeingequal,whichofthefollowingpersonsismorelikelytoshowosteoporosis?
+(A)AnolderHispanicAmericanwoman
+(B)AnolderAfricanAmericanwoman
+(C)AnolderAsianAmericanwoman
+(D)AnolderNativeAmericanwoman
+Figure46: AHumanAgingexample.
+21
+PublishedasaconferencepaperatICLR2021
+Morningsicknessistypicallyaproblem:
+(A)duringthefirsttrimester
+(B)duringthesecondtrimester
+(C)duringthethirdtrimester
+(D)allthroughthepregnancy
+Figure47: AHumanSexualityexample.
+Would a reservation to the definition of torture in the ICCPR be acceptable in contemporary
+practice?
+(A)Thisisanacceptablereservationifthereservingcountry’slegislationemploysadifferent
+definition
+(B) This is an unacceptable reservation because it contravenes the object and purpose of
+theICCPR
+(C)ThisisanunacceptablereservationbecausethedefinitionoftortureintheICCPRisconsistent
+withcustomaryinternationallaw
+(D)ThisisanacceptablereservationbecauseundergeneralinternationallawStateshavetheright
+toenterreservationstotreaties
+Figure48: AnInternationalLawexample.
+Which position does Rawls claim is the least likely to be adopted by the POP (people in the
+originalposition)?
+(A)ThePOPwouldchooseequalityaboveliberty.
+(B)ThePOPwouldoptforthe‘maximin’strategy.
+(C)ThePOPwouldoptforthe‘differenceprinciple.’
+(D)ThePOPwouldrejectthe‘systemofnaturalliberty.’
+Figure49: AJurisprudenceexample.
+JohnStuartMill: Eachperson’shappinessisagoodtothatperson,andthegeneralhappiness,
+therefore,agoodtotheaggregateofallpersons.
+(A)FallacyofComposition
+(B)FallacyofDivision
+(C)Gambler’sFallacy
+(D)Equivocation
+Figure50: ALogicalFallaciesexample.
+A6-sideddieisrolled15timesandtheresultsare: side1comesup0times;side2: 1time;side
+3: 2times;side4: 3times;side5: 4times;side6: 5times. Basedontheseresults,whatisthe
+probabilityofside3comingupwhenusingAdd-1Smoothing?
+(A)2/15 (B)1/7 (C)3/16 (D)1/5
+Figure51: AMachineLearningexample.
+AccordingtoLewin,LippetandWhite’s1939experiment,whichformofleadershipproducedthe
+mostworkfromparticipants?
+(A)Laissez-faire
+(B)Democratic
+(C)Authoritarian
+(D)Amixoflaissez-faireanddemocratic
+Figure52: AManagementexample.
+22
+PublishedasaconferencepaperatICLR2021
+Thesinglegroupwithinsocietythatismostvulnerabletoreferencegroupinfluenceis:
+(A)Theolderconsumerwhofeelssomewhatleftoutofthings.
+(B)Themarriedwomen,manyofwhomfeelaneedforstabilityintheirlives.
+(C)Newimmigrantswhoreallywanttoassimilateintotheirnewculture.
+(D)Children,whobasemostoftheirbuyingdecisionsonoutsideinfluences.
+Figure53: AMarketingexample.
+Whichofthefollowingconditionsdoesnotshowmultifactorialinheritance?
+(A)Pyloricstenosis
+(B)Schizophrenia
+(C)Spinabifida(neuraltubedefects)
+(D)Marfansyndrome
+Figure54: AMedicalGeneticsexample.
+Ifeachofthefollowingmealsprovidesthesamenumberofcalories,whichmealrequiresthe
+mostlandtoproducethefood?
+(A)Redbeansandrice
+(B)Steakandabakedpotato
+(C)Corntortillaandrefriedbeans
+(D)Lentilsoupandbrownbread
+Figure55: AMiscellaneousexample.
+InresponsetoSandel’s“socialjustice”argument,Kammarguesthat
+(A)evenifwewereabletoenhanceourselvesorothers,wewouldnottherebybeobligatedtodo
+so.
+(B)thereisadifferencebetween(i)choosingthatonehaveacertaintraitand(ii)beingresponsible
+forbearingthecostsofthatchoice.
+(C)havingtheoptiontoenhancewillleadtofewerinstancesofpeoplewhorequiretheassistance
+ofothers.
+(D)alloftheabove
+Figure56: AMoralDisputesexample.
+For which of these two scenarios does the main character (who uses I/me/my) do something
+clearlymorallywrong?
+Scenario1|IdriveveryfastwhenI’monaracetrack.
+Scenario2|IdriveveryfastwhenI’minthesuburbs.
+(A)Wrong,Wrong
+(B)Wrong,Notwrong
+(C)Notwrong,Wrong
+(D)Notwrong,Notwrong
+Figure57: AMoralScenariosexample. TheformattingofthistaskhindersUnifiedQAperformance
+substantially.
+Whichofthefollowingisthemostplausibleexplanationfortheprotectiveeffectofdietaryfibre
+againstcancerofthecolon?
+(A)Propionicacid,formedduringcolonicfibrefermentationinhibitsliverfattyacidsynthesis
+(B)Butyricacid,formedduringcolonicfibrefermentationstimulates"silencing"oftheSLC5A8
+tumoursuppressorgene
+(C)Butyricacid,formedduringcolonicfibrefermentationstimulatesanti-oxidantdefences
+inthecolon
+(D)Noneoftheseoptionsarecorrect
+Figure58: ANutritionexample.
+23
+PublishedasaconferencepaperatICLR2021
+According to Moore’s “ideal utilitarianism,” the right action is the one that brings about the
+greatestamountof:
+(A)pleasure.
+(B)happiness.
+(C)good.
+(D)virtue.
+Figure59: APhilosophyexample.
+ResearchersnowbelievethatthedeclineoftheMayawascausedchieflyby:
+(A)acataclysmofsomekind,suchasanearthquake,volcano,ortsunami.
+(B)ecologicaldegradationresultingfromslash-and-burnfarmingtechniques.
+(C)endlesswarsbetweenneighboringMayancity-states.
+(D)practicesofinterbreedingthatledtoasteepriseincongenitaldisorders.
+Figure60: APrehistoryexample.
+Kreteisanunmarriedtaxpayerwithincomeexclusivelyfromwages. ByDecember31,year1,
+Krete’semployerhaswithheld$16,000infederalincometaxesandKretehasmadenoestimated
+taxpayments. OnApril15,year2,Kretetimelyfiledforanextensionrequesttofileherindividual
+taxreturn,andpaid$300ofadditionaltaxes. Krete’syear1taxliabilitywas$16,500whenshe
+timelyfiledherreturnonApril30,year2,andpaidtheremainingtaxliabilitybalance. What
+amountwouldbesubjecttothepenaltyforunderpaymentofestimatedtaxes?
+(A)$0
+(B)$500
+(C)$1,650
+(D)$16,500
+Figure61: AProfessionalAccountingexample.
+Thenightbeforehisbarexamination,theexaminee’snext-doorneighborwashavingaparty. The
+musicfromtheneighbor’shomewassoloudthattheexamineecouldn’tfallasleep. Theexaminee
+calledtheneighborandaskedhertopleasekeepthenoisedown. Theneighborthenabruptlyhung
+up. Angered,theexamineewentintohisclosetandgotagun. Hewentoutsideandfiredabullet
+throughtheneighbor’slivingroomwindow. Notintendingtoshootanyone,theexamineefired
+hisgunatsuchananglethatthebulletwouldhittheceiling. Hemerelywantedtocausesome
+damagetotheneighbor’shometorelievehisangryrage. Thebullet,however,ricochetedoffthe
+ceilingandstruckapartygoerintheback,killinghim. Thejurisdictionmakesitamisdemeanor
+todischargeafirearminpublic. Theexamineewillmostlikelybefoundguiltyforwhichofthe
+followingcrimesinconnectiontothedeathofthepartygoer?
+(A)Murder.
+(B)Involuntarymanslaughter.
+(C)Voluntarymanslaughter.
+(D)Dischargeofafirearminpublic.
+Figure62: AProfessionalLawexample.
+24
+PublishedasaconferencepaperatICLR2021
+A 63-year-old man is brought to the emergency department because of a 4-day history of in-
+creasingly severe left leg pain and swelling of his left calf. He also has a 1-month history of
+increasingly severe upper midthoracic back pain. During this time, he has had a 9-kg (20-lb)
+weightlossdespitenochangeinappetite. Hehasnohistoryofmajormedicalillness. Hisonly
+medicationisibuprofen. Heis180cm(5ft11in)tallandweighs82kg(180lb); BMIis25
+kg/m2. Hisvitalsignsarewithinnormallimits. Onexamination, lowerextremitypulsesare
+palpablebilaterally. Theremainderofthephysicalexaminationshowsnoabnormalities. Anx-ray
+ofthethoracicspineshowsnoabnormalities. ACTscanoftheabdomenshowsa3-cmmassin
+thebodyofthepancreas;therearelivermetastasesandencasementofthesuperiormesenteric
+artery. Ultrasonographyoftheleftlowerextremityshowsafemoropoplitealvenousclot. Which
+ofthefollowingisthemostlikelycauseofthispatient’ssymptoms?
+(A)Carcinoidsyndrome
+(B)Hypercoagulabilityfromadvancedmalignancy
+(C)Multipleendocrineneoplasia
+(D)Splenicarteryaneurysmandembolicdiseaseoftheleftlowerextremity
+Figure63: AProfessionalMedicineexample.
+Thetechniquethatismostlikelytoproduceanimmediateimprovementinthebehaviorofachild
+whohitsothersandripsupschoolbooksis
+(A)acombinationofreinforcementforappropriatebehaviorandmildpunishmentforin-
+appropriatebehavior
+(B)differentialpositivereinforcement
+(C)lossofprivilegesformisbehaving
+(D)shaping
+Figure64: AProfessionalPsychologyexample.
+Youworkforautilitycompanythatisbuildingabiomassplantinthecommunity. Youremployer
+asksyoutogiveaseriesofcommunitytalksabouttheplantandfutureoperations. Youvisitthe
+plantseveralhoursbeforeyouareduetogiveaspeechthathasbeenpreparedbyyourimmediate
+supervisor. Duringthetouroftheplant,youdiscoverseveralclaimsinthespeecharenottrue.
+Whatdoyoudo?
+(A)Writeanddeliveranewspeechthatyouknowisentirelycorrect.
+(B)Cancelallspeechesuntilyouandyoursupervisorcangettheinformationstraight.
+(C)Deliverthespeechaspreparedanddiscusstheinaccuracieswithyoursupervisorafterward.
+(D) Address the inaccuracies with your supervisor immediately and make the necessary
+correctionsbeforegivingthespeech.
+Figure65: APublicRelationsexample.
+25
+PublishedasaconferencepaperatICLR2021
+TheChemicalWeaponsConvention(CWC)prohibitedthepossessionordeploymentofchemical
+weapons;howeveritfailedtoimplementstipulationsthatwouldrequiresignatoriestodeclaretheir
+existingstocksofchemicalweapons,toidentifyfacilitiesthatwereonceinvolvedinchemical
+production,ortoannouncewhentheirexistingstockswouldbedestroyed.
+(A) The Chemical Weapons Convention (CWC) prohibited the possession or deployment of
+chemicalweapons;howeveritfailedtoimplementstipulationsthatwouldrequiresignatoriesto
+declaretheirexistingstocksofchemicalweapons,toidentifyfacilitiesthatwereonceinvolvedin
+chemicalproduction,ortoannouncewhentheirexistingstockswouldbedestroyed.
+(B)TheCWCmadesomeimportantdevelopmentsregardingtheuseandpossessionofchemical
+weapons and the destruction of existing stockpiles. However, the treaty failed to establish an
+independentbodyempoweredwiththecapacitytochecktreatycompliance. Lackofsupra-state
+authorityhasunderminedtheabilitytoenforcethosedevelopments. Giventheanarchicalnature
+ofinternationalsocietyitmaybeinthenationalsecurityinteresttoretainstocks.
+(C)Chemicalweaponscontinuetoexertadetermininginfluenceoninternationalsociety. Asearly
+asthe1970smilitarystrategistswereconvincedofthedeterrenceeffectschemicalweaponscould
+have,comparabletothesecondstrikesurvivallogicofnucleardeterrence. Thepreferencesof
+strategistsresultedincontinuedmanufactureandstockpilingofweaponscreatinganinternational
+crisisofstability.
+(D)WhiletheCWChasbeenratifiedbythemajorityofinternationalsociety,somenations
+withalargechemicalcapabilityattheirdisposalhaveyettoenterintothetreaty. However,
+to some analysts the destructive military potential would be limited, having a moderate
+effectonawell-equippedarmyinconventionalwarfare. Chemicalarsenalessentiallyfalls
+underthecategoryofthe"poormans"weaponry,beingsimplisticandinexpensivewhilst
+having limited military utility. However, the concern remains of the prospective impact a
+terroristchemicalattackcouldhaveoncivilianpopulations.
+Figure66: ASecurityStudiesexample.
+Whichofthefollowingstatementsmostcloselycorrespondswithdifferentialassociationtheory?
+(A)Ifallofyourfriendsjumpedoffabridge,Isupposeyouwouldtoo.
+(B)Youshouldbeproudtobeapartofthisorganization.
+(C)Ifthedoorisclosed,trythewindow.
+(D)Onceathief,alwaysathief.
+Figure67: ASociologyexample.
+WhydidCongressopposeWilson’sproposalfortheLeagueofNations?
+(A)ItfearedtheLeaguewouldencourageSovietinfluenceintheUS
+(B)ItfearedtheLeaguewouldbeanti-democratic
+(C)ItfearedtheLeaguewouldcommittheUStoaninternationalalliance
+(D)Bothaandb
+Figure68: AUSForeignPolicyexample.
+Anobservationalstudyindiabeticsassessestheroleofanincreasedplasmafibrinogenlevelon
+theriskofcardiacevents. 130diabeticpatientsarefollowedfor5yearstoassessthedevelopment
+ofacutecoronarysyndrome. Inthegroupof60patientswithanormalbaselineplasmafibrinogen
+level,20developacutecoronarysyndromeand40donot. Inthegroupof70patientswithahigh
+baselineplasmafibrinogenlevel,40developacutecoronarysyndromeand30donot. Whichof
+thefollowingisthebestestimateofrelativeriskinpatientswithahighbaselineplasmafibrinogen
+levelcomparedtopatientswithanormalbaselineplasmafibrinogenlevel?
+(A)(40/30)/(20/40)
+(B)(40*40)/(20*30)
+(C)(40*70)/(20*60)
+(D)(40/70)/(20/60)
+Figure69: AVirologyexample.
+26
+PublishedasaconferencepaperatICLR2021
+TheGreatCloudSutraprophesiedtheimminentarrivalofwhichperson?
+(A)Maitreya(Milo)
+(B)TheBuddha
+(C)ZhouDunyi
+(D)WangYangming
+Figure70: AWorldReligionsexample.
+27

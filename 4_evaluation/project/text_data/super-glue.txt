@@ -1,0 +1,1269 @@
+SuperGLUE: A Stickier Benchmark for
+General-Purpose Language Understanding Systems
+AlexWang∗ YadaPruksachatkun∗ NikitaNangia∗
+NewYorkUniversity NewYorkUniversity NewYorkUniversity
+AmanpreetSingh∗ JulianMichael FelixHill OmerLevy
+FacebookAIResearch UniversityofWashington DeepMind FacebookAIResearch
+SamuelR.Bowman
+NewYorkUniversity
+Abstract
+Inthelastyear,newmodelsandmethodsforpretrainingandtransferlearninghave
+drivenstrikingperformanceimprovementsacrossarangeoflanguageunderstand-
+ing tasks. The GLUE benchmark, introduced a little over one year ago, offers
+asingle-numbermetricthatsummarizesprogressonadiversesetofsuchtasks,
+butperformanceonthebenchmarkhasrecentlysurpassedthelevelofnon-expert
+humans,suggestinglimitedheadroomforfurtherresearch. Inthispaperwepresent
+SuperGLUE,anewbenchmarkstyledafterGLUEwithanewsetofmorediffi-
+cultlanguageunderstandingtasks, asoftwaretoolkit, andapublicleaderboard.
+SuperGLUEisavailableatsuper.gluebenchmark.com.
+1 Introduction
+Recentlytherehasbeennotableprogressacrossmanynaturallanguageprocessing(NLP)tasks,led
+by methods such as ELMo (Peters et al., 2018), OpenAI GPT (Radford et al., 2018), and BERT
+(Devlinetal.,2019).Theunifyingthemeofthesemethodsisthattheycoupleself-supervisedlearning
+frommassiveunlabelledtextcorporawitheffectiveadaptingoftheresultingmodeltotargettasks.
+Thetasksthathaveprovenamenabletothisgeneralapproachincludequestionanswering,textual
+entailment,andparsing,amongmanyothers(Devlinetal.,2019;Kitaevetal.,2019,i.a.).
+In this context, the GLUE benchmark (Wang et al., 2019a) has become a prominent evaluation
+frameworkforresearchtowardsgeneral-purposelanguageunderstandingtechnologies. GLUEis
+acollectionofninelanguageunderstandingtasksbuiltonexistingpublicdatasets, togetherwith
+privatetestdata,anevaluationserver,asingle-numbertargetmetric,andanaccompanyingexpert-
+constructeddiagnosticset. GLUEwasdesignedtoprovideageneral-purposeevaluationoflanguage
+understandingthatcoversarangeoftrainingdatavolumes,taskgenres,andtaskformulations. We
+believe it was these aspects that made GLUE particularly appropriate for exhibiting the transfer-
+learningpotentialofapproacheslikeOpenAIGPTandBERT.
+TheprogressofthelasttwelvemonthshaserodedheadroomontheGLUEbenchmarkdramatically.
+Whilesometasks(Figure1)andsomelinguisticphenomena(Figure2inAppendixB)measured
+inGLUEremaindifficult,thecurrentstateoftheartGLUEScoreasofearlyJuly2019(88.4from
+Yang et al., 2019) surpasses human performance (87.1 from Nangia and Bowman, 2019) by 1.3
+points,andinfactexceedsthishumanperformanceestimateonfourtasks. Consequently,whilethere
+∗Equalcontribution.Correspondence:glue-benchmark-admin@googlegroups.com
+33rdConferenceonNeuralInformationProcessingSystems(NeurIPS2019),Vancouver,Canada.
+0202
+beF
+31
+]LC.sc[
+3v73500.5091:viXra
+nttA+oMLE+MTSLiB TPG
+IAnepO
+sretpadA
+ksat-elgniS
++
+TREB
+)egraL(
+TREB
+sTLITS
+no TREB
+MAB
++
+TREB
+TREBmeS LaTeM
+lekronS
+)egraL(
+ECILA
+)elbmesne(
+NND-TM
+)elbmesne(
+egraL-teNLX
+1.2
+1.1
+1.0
+0.9
+0.8
+0.7
+0.6 GLUE Score MRPC QNLI
+Human Performance STS-B RTE
+CoLA QQP WNLI 0.5
+SST-2 MNLI
+Figure1: GLUEbenchmarkperformanceforsubmittedsystems,rescaledtosethumanperformance
+to1.0,shownasasinglenumberscore,andbrokendownintothenineconstituenttaskperformances.
+Fortaskswithmultiplemetrics,weuseanaverageofthemetrics. Moreinformationonthetasks
+includedinGLUEcanbefoundinWangetal.(2019a)andinWarstadtetal.(2019,CoLA),Socher
+etal.(2013,SST-2),DolanandBrockett(2005,MRPC),Ceretal.(2017,STS-B),andWilliamsetal.
+(2018,MNLI),andRajpurkaretal.(2016,theoriginaldatasourceforQNLI).
+remainssubstantialscopeforimprovementtowardsGLUE’shigh-levelgoals,theoriginalversionof
+thebenchmarkisnolongerasuitablemetricforquantifyingsuchprogress.
+Inresponse,weintroduceSuperGLUE,anewbenchmarkdesignedtoposeamorerigoroustestof
+languageunderstanding. SuperGLUEhasthesamehigh-levelmotivationasGLUE:toprovidea
+simple,hard-to-gamemeasureofprogresstowardgeneral-purposelanguageunderstandingtechnolo-
+giesforEnglish. WeanticipatethatsignificantprogressonSuperGLUEshouldrequiresubstantive
+innovations in a number of core areas of machine learning, including sample-efficient, transfer,
+multitask,andunsupervisedorself-supervisedlearning.
+SuperGLUE follows the basic design of GLUE: It consists of a public leaderboard built around
+eight language understanding tasks, drawing on existing data, accompanied by a single-number
+performancemetric,andananalysistoolkit. However,itimprovesuponGLUEinseveralways:
+Morechallengingtasks: SuperGLUEretainsthetwohardesttasksinGLUE.Theremainingtasks
+wereidentifiedfromthosesubmittedtoanopencallfortaskproposalsandwereselectedbasedon
+difficultyforcurrentNLPapproaches.
+Morediversetaskformats: ThetaskformatsinGLUEarelimitedtosentence-andsentence-pair
+classification. WeexpandthesetoftaskformatsinSuperGLUEtoincludecoreferenceresolution
+andquestionanswering(QA).
+Comprehensive human baselines: We include human performance estimates for all benchmark
+tasks, which verify that substantial headroom exists between a strong BERT-based baseline and
+humanperformance.
+Improved code support: SuperGLUE is distributed with a new, modular toolkit for work on
+pretraining,multi-tasklearning,andtransferlearninginNLP,builtaroundstandardtoolsincluding
+PyTorch(Paszkeetal.,2017)andAllenNLP(Gardneretal.,2017).
+Refined usage rules: The conditions for inclusion on the SuperGLUE leaderboard have been
+revampedtoensurefaircompetition,aninformativeleaderboard,andfullcreditassignmenttodata
+andtaskcreators.
+TheSuperGLUEleaderboard,data,andsoftwaretoolsareavailableatsuper.gluebenchmark.com.
+2 RelatedWork
+MuchworkpriortoGLUEdemonstratedthattrainingneuralmodelswithlargeamountsofavailable
+supervision can produce representations that effectively transfer to a broad range of NLP tasks
+2
+Table 1: The tasks included in SuperGLUE. WSD stands for word sense disambiguation, NLI is
+natural language inference, coref. is coreference resolution, and QA is question answering. For
+MultiRC,welistthenumberoftotalanswersfor456/83/166train/dev/testquestions.
+Corpus |Train| |Dev| |Test| Task Metrics TextSources
+BoolQ 9427 3270 3245 QA acc. Googlequeries,Wikipedia
+CB 250 57 250 NLI acc./F1 various
+COPA 400 100 500 QA acc. blogs,photographyencyclopedia
+MultiRC 5100 953 1800 QA F1 /EM various
+a
+ReCoRD 101k 10k 10k QA F1/EM news(CNN,DailyMail)
+RTE 2500 278 300 NLI acc. news,Wikipedia
+WiC 6000 638 1400 WSD acc. WordNet,VerbNet,Wiktionary
+WSC 554 104 146 coref. acc. fictionbooks
+(CollobertandWeston,2008;DaiandLe,2015;Kirosetal.,2015;Hilletal.,2016;Conneauand
+Kiela,2018;McCannetal.,2017;Petersetal.,2018). GLUEwaspresentedasaformalchallenge
+affordingstraightforwardcomparisonbetweensuchtask-agnostictransferlearningtechniques. Other
+similarly-motivatedbenchmarksincludeSentEval(ConneauandKiela,2018),whichspecifically
+evaluatesfixed-sizesentenceembeddings,andDecaNLP(McCannetal.,2018),whichrecastsaset
+oftargettasksintoageneralquestion-answeringformatandprohibitstask-specificparameters. In
+contrast,GLUEprovidesalightweightclassificationAPIandnorestrictionsonmodelarchitectureor
+parametersharing,whichseemstohavebeenwell-suitedtorecentworkinthisarea.
+Since its release, GLUE has been used as a testbed and showcase by the developers of several
+influentialmodels,includingGPT(Radfordetal.,2018)andBERT(Devlinetal.,2019). Asshown
+in Figure 1, progress on GLUE since its release has been striking. On GLUE, GPT and BERT
+achievedscoresof72.8and80.2respectively, relativeto66.5foranELMo-basedmodel(Peters
+etal.,2018)and63.7forthestrongestbaselinewithnomultitasklearningorpretrainingabovethe
+wordlevel. Recentmodels(Liuetal.,2019d;Yangetal.,2019)haveclearlysurpassedestimatesof
+non-experthumanperformanceonGLUE(NangiaandBowman,2019). Thesuccessofthesemodels
+onGLUEhasbeendrivenbyever-increasingmodelcapacity,computepower,anddataquantity,as
+wellasinnovationsinmodelexpressivity(fromrecurrenttobidirectionalrecurrenttomulti-headed
+transformer encoders) and degree of contextualization (from learning representation of words in
+isolationtousinguni-directionalcontextsandultimatelytoleveragingbidirectionalcontexts).
+Inparalleltoworkscalinguppretrainedmodels,severalstudieshavefocusedoncomplementary
+methodsforaugmentingperformanceofpretrainedmodels. Phangetal.(2018)showthatBERTcan
+beimprovedusingtwo-stagepretraining,i.e.,fine-tuningthepretrainedmodelonanintermediate
+data-richsupervisedtaskbeforefine-tuningitagainonadata-poortargettask.Liuetal.(2019d,c)and
+Bachetal.(2018)getfurtherimprovementsrespectivelyviamulti-taskfinetuningandusingmassive
+amountsofweaksupervision. Clarketal.(2019b)demonstratethatknowledgedistillation(Hinton
+et al., 2015; Furlanello et al., 2018) can lead to student networks that outperform their teachers.
+Overall,thequantityandqualityofresearchcontributionsaimedatthechallengesposedbyGLUE
+underlinetheutilityofthisstyleofbenchmarkformachinelearningresearcherslookingtoevaluate
+newapplication-agnosticmethodsonlanguageunderstanding.
+Limits to current approaches are also apparent via the GLUE suite. Performance on the GLUE
+diagnosticentailmentdataset,at0.42R ,fallsfarbelowtheaveragehumanperformanceof0.80
+3
+R reportedintheoriginalGLUEpublication,withmodelsperformingnear,orevenbelow,chance
+3
+on some linguistic phenomena (Figure 2, Appendix B). While some initially difficult categories
+saw gains from advances on GLUE (e.g., double negation), others remain hard (restrictivity) or
+evenadversarial(disjunction,downwardmonotonicity). Thissuggeststhatevenasunsupervised
+pretrainingproducesever-betterstatisticalsummariesoftext, itremainsdifficulttoextractmany
+detailscrucialtosemanticswithouttherightkindofsupervision. Muchrecentworkhasmadesimilar
+observationsaboutthelimitationsofexistingpretrainedmodels(JiaandLiang,2017;Naiketal.,
+2018;McCoyandLinzen,2019;McCoyetal.,2019;Liuetal.,2019a,b).
+3
+Table2: DevelopmentsetexamplesfromthetasksinSuperGLUE.Boldtextrepresentspartofthe
+exampleformatforeachtask. Textinitalicsispartofthemodelinput. Underlinedtextisspecially
+markedintheinput. Textinamonospaced fontrepresentstheexpectedmodeloutput.
+QlooB Passage:Barq’s–Barq’sisanAmericansoftdrink.Itsbrandofrootbeerisnotableforhavingcaffeine.
+Barq’s,createdbyEdwardBarqandbottledsincetheturnofthe20thcentury,isownedbytheBarq
+familybutbottledbytheCoca-ColaCompany.ItwasknownasBarq’sFamousOldeTymeRootBeer
+until2012.
+Question:isbarq’srootbeerapepsiproduct Answer:No
+BC
+Text:B:Andyet,uh,Iwe-,Ihopetoseeemployerbased,youknow,helpingout.Youknow,child,uh,
+carecentersattheplaceofemploymentandthingslikethat,thatwillhelpout.A:Uh-huh.B:Whatdo
+youthink,doyouthinkweare,settingatrend?
+Hypothesis:theyaresettingatrend Entailment:Unknown
+APOC Premise:Mybodycastashadowoverthegrass. Question:What’stheCAUSEforthis?
+Alternative1:Thesunwasrising. Alternative2:Thegrasswascut.
+CorrectAlternative:1
+CRitluM Paragraph:Susanwantedtohaveabirthdayparty.Shecalledallofherfriends.Shehasfivefriends.
+HermomsaidthatSusancaninvitethemalltotheparty. Herfirstfriendcouldnotgototheparty
+becauseshewassick.Hersecondfriendwasgoingoutoftown.Herthirdfriendwasnotsosureifher
+parentswouldlether.Thefourthfriendsaidmaybe.Thefifthfriendcouldgotothepartyforsure.Susan
+wasalittlesad.Onthedayoftheparty,allfivefriendsshowedup.EachfriendhadapresentforSusan.
+Susanwashappyandsenteachfriendathankyoucardthenextweek
+Question: DidSusan’ssickfriendrecover? Candidateanswers: Yes,sherecovered(T),No(F),Yes
+(T),No,shedidn’trecover(F),Yes,shewasatSusan’sparty(T)
+DRoCeR Paragraph:(CNN)PuertoRicoonSundayoverwhelminglyvotedforstatehood.ButCongress,theonly
+bodythatcanapprovenewstates,willultimatelydecidewhetherthestatusoftheUScommonwealth
+changes.Ninety-sevenpercentofthevotesinthenonbindingreferendumfavoredstatehood,anincrease
+overtheresultsofa2012referendum,officialresultsfromtheStateElectorcalCommissionshow. It
+wasthefifthsuchvoteonstatehood. "Today,wethepeopleofPuertoRicoaresendingastrongand
+clearmessagetotheUSCongress...andtotheworld...claimingourequalrightsasAmericancitizens,
+PuertoRicoGov. RicardoRossellosaidinanewsrelease. @highlightPuertoRicovotedSundayin
+favorofUSstatehood
+QueryForone,theycantruthfullysay,“Don’tblameme,Ididn’tvoteforthem,”whendiscussingthe
+<placeholder>presidency CorrectEntities:US
+ETR Text: Dana Reeve, the widow of the actor Christopher Reeve, has died of lung cancer at age 44,
+accordingtotheChristopherReeveFoundation.
+Hypothesis:ChristopherReevehadanaccident. Entailment:False
+CiW Context1:Roomandboard. Context2:Henailedboardsacrossthewindows.
+Sensematch:False
+CSW Text: MarktoldPetemanyliesabouthimself,whichPeteincludedinhisbook. Heshouldhavebeen
+moretruthful. Coreference:False
+3 SuperGLUEOverview
+3.1 DesignProcess
+ThegoalofSuperGLUEistoprovideasimple,robustevaluationmetricofanymethodcapableof
+beingappliedtoabroadrangeoflanguageunderstandingtasks.Tothatend,indesigningSuperGLUE,
+weidentifythefollowingdesiderataoftasksinthebenchmark:
+Tasksubstance: Tasksshouldtestasystem’sabilitytounderstandandreasonabouttextsinEnglish.
+Taskdifficulty: Tasksshouldbebeyondthescopeofcurrentstate-of-the-artsystems,butsolvableby
+mostcollege-educatedEnglishspeakers. Weexcludetasksthatrequiredomain-specificknowledge,
+e.g. medicalnotesorscientificpapers.
+Evaluability: Tasksmusthaveanautomaticperformancemetricthatcorrespondswelltohuman
+judgmentsofoutputquality. Sometextgenerationtasksfailtomeetthiscriteriaduetoissueswith
+automaticmetricslikeROUGEandBLEU(Callison-Burchetal.,2006;Liuetal.,2016,i.a.).
+4
+Publicdata: Werequirethattaskshaveexistingpublictrainingdatainordertominimizetherisks
+involvedinnewly-createddatasets. Wealsoprefertasksforwhichwehaveaccessto(orcouldcreate)
+atestsetwithprivatelabels.
+Taskformat: Weprefertasksthathadrelativelysimpleinputandoutputformats,toavoidincentiviz-
+ingtheusersofthebenchmarktocreatecomplextask-specificmodelarchitectures.Still,whileGLUE
+isrestrictedtotasksinvolvingsinglesentenceorsentencepairinputs,forSuperGLUEweexpand
+thescopetoconsidertaskswithlongerinputs. Thisyieldsasetoftasksthatrequiresunderstanding
+individualtokensincontext,completesentences,inter-sentencerelations,andentireparagraphs.
+License: Taskdatamustbeavailableunderlicencesthatallowuseandredistributionforresearch
+purposes.
+ToidentifypossibletasksforSuperGLUE,wedisseminatedapubliccallfortaskproposalstothe
+NLPcommunity,andreceivedapproximately30proposals. Wefilteredtheseproposalsaccording
+to our criteria. Many proposals were not suitable due to licensing issues, complex formats, and
+insufficientheadroom;weprovideexamplesofsuchtasksinAppendixD.Foreachoftheremaining
+tasks,weranaBERT-basedbaselineandahumanbaseline,andfilteredouttaskswhichwereeither
+toochallengingforhumanswithoutextensivetrainingortooeasyforourmachinebaselines.
+3.2 SelectedTasks
+Followingthisprocess,wearrivedateighttaskstouseinSuperGLUE.SeeTables1and2fordetails
+andspecificexamplesofeachtask.
+BoolQ(BooleanQuestions,Clarketal.,2019a)isaQAtaskwhereeachexampleconsistsofashort
+passage and a yes/no question about the passage. The questions are provided anonymously and
+unsolicitedbyusersoftheGooglesearchengine,andafterwardspairedwithaparagraphfroma
+Wikipediaarticlecontainingtheanswer. Followingtheoriginalwork,weevaluatewithaccuracy.
+CB(CommitmentBank,deMarneffeetal.,2019)isacorpusofshorttextsinwhichatleastone
+sentencecontainsanembeddedclause. Eachoftheseembeddedclausesisannotatedwiththedegree
+towhichitappearsthepersonwhowrotethetextiscommittedtothetruthoftheclause. Theresulting
+taskframedasthree-classtextualentailmentonexamplesthataredrawnfromtheWallStreetJournal,
+fiction from the British National Corpus, and Switchboard. Each example consists of a premise
+containinganembeddedclauseandthecorrespondinghypothesisistheextractionofthatclause.
+Weuseasubsetofthedatathathadinter-annotatoragreementabove80%. Thedataisimbalanced
+(relativelyfewerneutralexamples),soweevaluateusingaccuracyandF1,whereformulti-classF1
+wecomputetheunweightedaverageoftheF1perclass.
+COPA(ChoiceofPlausibleAlternatives,Roemmeleetal.,2011)isacausalreasoningtaskinwhich
+asystemisgivenapremisesentenceandmustdetermineeitherthecauseoreffectofthepremise
+from two possible choices. All examples are handcrafted and focus on topics from blogs and a
+photography-relatedencyclopedia. Followingtheoriginalwork,weevaluateusingaccuracy.
+MultiRC(Multi-SentenceReadingComprehension,Khashabietal.,2018)isaQAtaskwhereeach
+example consists of a context paragraph, a question about that paragraph, and a list of possible
+answers. Thesystemmustpredictwhichanswersaretrueandwhicharefalse. WhilemanyQA
+tasksexist,weuseMultiRCbecauseofanumberofdesirableproperties: (i)eachquestioncanhave
+multiplepossiblecorrectanswers,soeachquestion-answerpairmustbeevaluatedindependentof
+otherpairs,(ii)thequestionsaredesignedsuchthatansweringeachquestionrequiresdrawingfacts
+from multiple context sentences, and (iii) the question-answer pair format more closely matches
+theAPIofothertasksinSuperGLUEthanthemorepopularspan-extractiveQAformatdoes. The
+paragraphsaredrawnfromsevendomainsincludingnews,fiction,andhistoricaltext. Theevaluation
+metricsareF1overallanswer-options(F1 )andexactmatchofeachquestion’ssetofanswers(EM).
+a
+ReCoRD(ReadingComprehensionwithCommonsenseReasoningDataset,Zhangetal.,2018)isa
+multiple-choiceQAtask. EachexampleconsistsofanewsarticleandaCloze-stylequestionabout
+thearticleinwhichoneentityismaskedout. Thesystemmustpredictthemaskedoutentityfroma
+listofpossibleentitiesintheprovidedpassage,wherethesameentitymaybeexpressedwithmultiple
+differentsurfaceforms,whichareallconsideredcorrect. ArticlesarefromCNNandDailyMail. We
+evaluatewithmax(overallmentions)token-levelF1andexactmatch(EM).
+5
+RTE(RecognizingTextualEntailment)datasetscomefromaseriesofannualcompetitionsontextual
+entailment. RTEisincludedinGLUE,andweusethesamedataandformatasGLUE:Wemergedata
+fromRTE1(Daganetal.,2006),RTE2(BarHaimetal.,2006),RTE3(Giampiccoloetal.,2007),and
+RTE5(Bentivoglietal.,2009). Alldatasetsarecombinedandconvertedtotwo-classclassification:
+entailment and not_entailment. Of all the GLUE tasks, RTE is among those that benefits from
+transferlearningthemost,withperformancejumpingfromnearrandom-chance(∼56%)atthetime
+ofGLUE’slaunchto86.3%accuracy(Liuetal.,2019d;Yangetal.,2019)atthetimeofwriting.
+Giventhenearlyeightpointgapwithrespecttohumanperformance,however,thetaskisnotyet
+solvedbymachines,andweexpecttheremaininggaptobedifficulttoclose.
+WiC(Word-in-Context,PilehvarandCamacho-Collados,2019)isawordsensedisambiguationtask
+castasbinaryclassificationofsentencepairs. Giventwotextsnippetsandapolysemouswordthat
+appearsinbothsentences,thetaskistodeterminewhetherthewordisusedwiththesamesensein
+bothsentences. SentencesaredrawnfromWordNet(Miller,1995),VerbNet(Schuler,2005),and
+Wiktionary. Wefollowtheoriginalworkandevaluateusingaccuracy.
+WSC (Winograd Schema Challenge, Levesque et al., 2012) is a coreference resolution task in
+whichexamplesconsistofasentencewithapronounandalistofnounphrasesfromthesentence.
+Thesystemmustdeterminethecorrectreferrentofthepronounfromamongtheprovidedchoices.
+Winogradschemasaredesignedtorequireeverydayknowledgeandcommonsensereasoningtosolve.
+GLUEincludesaversionofWSCrecastasNLI,knownasWNLI.Untilveryrecently,nosubstantial
+progresshadbeenmadeonWNLI,withmanysubmissionsoptingtosubmitmajorityclasspredic-
+tions.2 Inthepastfewmonths,severalworks(Kocijanetal.,2019;Liuetal.,2019d)havemaderapid
+progressviaahueristicdataaugmentationscheme,raisingmachineperformanceto90.4%accuracy.
+Given estimated human performance of ∼96%, there is still a gap between machine and human
+performance,whichweexpectwillberelativelydifficulttoclose. Wethereforeincludeaversionof
+WSCcastasbinaryclassification,whereeachexampleconsistsofasentencewithamarkedpronoun
+andnoun,andthetaskistodetermineifthepronounreferstothatnoun. Thetrainingandvalidation
+examplesaredrawnfromtheoriginalWSCdata(Levesqueetal.,2012),aswellasthosedistributed
+bytheaffiliatedorganizationCommonsenseReasoning.3 Thetestexamplesarederivedfromfiction
+booksandhavebeensharedwithusbytheauthorsoftheoriginaldataset. Weevaluateusingaccuracy.
+3.3 Scoring
+AswithGLUE,weseektogiveasenseofaggregatesystemperformanceoveralltasksbyaveraging
+scoresofalltasks. Lackingafaircriterionwithwhichtoweightthecontributionsofeachtaskto
+theoverallscore,weoptforthesimpleapproachofweighingeachtaskequally,andfortaskswith
+multiplemetrics,firstaveragingthosemetricstogetataskscore.
+3.4 ToolsforModelAnalysis
+AnalyzingLinguisticandWorldKnowledgeinModels GLUEincludesanexpert-constructed,
+diagnosticdatasetthatautomaticallytestsmodelsforabroadrangeoflinguistic,commonsense,and
+worldknowledge. Eachexampleinthisbroad-coveragediagnosticisasentencepairlabeledwith
+athree-wayentailmentrelation(entailment,neutral,orcontradiction)andtaggedwithlabelsthat
+indicatethephenomenathatcharacterizetherelationshipbetweenthetwosentences. Submissionsto
+theGLUEleaderboardarerequiredtoincludepredictionsfromthesubmission’sMultiNLIclassifier
+onthediagnosticdataset,andanalysesoftheresultswereshownalongsidethemainleaderboard.
+Sincethisdiagnostictaskhasproveddifficultfortopmodels,weretainitinSuperGLUE.However,
+since MultiNLI is not part of SuperGLUE, we collapse contradiction and neutral into a single
+not_entailmentlabel,andrequestthatsubmissionsincludepredictionsontheresultingsetfromthe
+modelusedfortheRTEtask. Weestimatehumanperformancefollowingthesameprocedureweuse
+2WNLIisespeciallydifficultduetoanadversarialtrain/devsplit: Premisesentencesthatappearinthe
+trainingsetoftenappearinthedevelopmentsetwithadifferenthypothesisandaflippedlabel. Ifasystem
+memorizesthetrainingset,whichwaseasyduetothesmallsizeofthetrainingset,itcouldperformfarbelow
+chanceonthedevelopmentset.WeremovethisadversarialdesigninourversionofWSCbyensuringthatno
+sentencesaresharedbetweenthetraining,validation,andtestsets.
+3http://commonsensereasoning.org/disambiguation.html
+6
+forthebenchmarktasks(SectionC).Weestimateanaccuracyof88%andaMatthew’scorrelation
+coefficient(MCC,thetwo-classvariantoftheR metricusedinGLUE)of0.77.
+3
+AnalyzingGenderBiasinModels Recentworkhasidentifiedthepresenceandamplificationof
+manysocialbiasesindata-drivenmachinelearningmodels(Luetal.,2018;Zhaoetal.,2018, i.a.).To
+promotethedetectionofsuchbiases,weincludeWinogender(Rudingeretal.,2018)asanadditional
+diagnosticdataset. Winogenderisdesignedtomeasuregenderbiasincoreferenceresolutionsystems.
+WeusetheDiverseNaturalLanguageInferenceCollection(Poliaketal.,2018)versionthatcasts
+Winogenderasatextualentailmenttask.Eachexampleconsistsofapremisesentencewithamaleor
+femalepronounandahypothesisgivingapossibleantecedentofthepronoun. Examplesoccurin
+minimalpairs,wheretheonlydifferencebetweenanexampleanditspairisthegenderofthepronoun
+inthepremise. PerformanceonWinogenderismeasuredwithaccuracyandthegenderparityscore:
+thepercentageofminimalpairsforwhichthepredictionsarethesame. Asystemcantriviallyobtain
+aperfectgenderparityscorebyguessingthesameclassforallexamples,soahighgenderparity
+scoreismeaninglessunlessaccompaniedbyhighaccuracy. Wecollectnon-expertannotationsto
+estimatehumanperformance,andobserveanaccuracyof99.7%andagenderparityscoreof0.99.
+Likeanydiagnostic,Winogenderhaslimitations. Itoffersonlypositivepredictivevalue: Apoor
+biasscoreisclearevidencethatamodelexhibitsgenderbias,butagoodscoredoesnotmeanthat
+themodelisunbiased. Morespecifically,intheDNCversionofthetask,alowgenderparityscore
+meansthatamodel’spredictionoftextualentailmentcanbechangedwithachangeinpronouns,all
+elseequal. Itisplausiblethatthereareformsofbiasthatarerelevanttotargettasksofinterest,but
+thatdonotsurfaceinthissetting(GonenandGoldberg,2019). Also,Winogenderdoesnotcoverall
+formsofsocialbias,orevenallformsofgender. Forinstance,theversionofthedatausedhereoffers
+nocoverageofgender-neutraltheyornon-binarypronouns. Despitetheselimitations,webelievethat
+Winogender’sinclusionisworthwhileinprovidingacoarsesenseofhowsocialbiasesevolvewith
+modelperformanceandforkeepingattentiononthesocialramificationsofNLPmodels.
+4 UsingSuperGLUE
+SoftwareTools TofacilitateusingSuperGLUE,wereleasejiant(Wangetal.,2019b),4amodular
+software toolkit, built with PyTorch (Paszke et al., 2017), components from AllenNLP (Gardner
+etal.,2017),andthetransformerspackage.5 jiantimplementsourbaselinesandsupportsthe
+evaluationofcustommodelsandtrainingmethodsonthebenchmarktasks. Thetoolkitincludes
+supportforexistingpopularpretrainedmodelssuchasOpenAIGPTandBERT,aswellassupport
+formultistageandmultitasklearningofthekindseeninthestrongestmodelsonGLUE.
+Eligibility AnysystemormethodthatcanproducepredictionsfortheSuperGLUEtasksiseligible
+forsubmissiontotheleaderboard,subjecttothedata-useandsubmissionfrequencypoliciesstated
+immediatelybelow. Therearenorestrictionsonthetypeofmethodsthatmaybeused,andthereis
+norequirementthatanyformofparametersharingorsharedinitializationbeusedacrossthetasksin
+thebenchmark. Tolimitoverfittingtotheprivatetestdata,usersarelimitedtoamaximumoftwo
+submissionsperdayandsixsubmissionspermonth.
+Data DataforthetasksareavailablefordownloadthroughtheSuperGLUEsiteandthrougha
+downloadscriptincludedwiththesoftwaretoolkit. Eachtaskcomeswithastandardizedtrainingset,
+developmentset,andunlabeledtestset. Submittedsystemsmayuseanypublicorprivatedatawhen
+developingtheirsystems,withafewexceptions: SystemsmayonlyusetheSuperGLUE-distributed
+versions of the task datasets, as these use different train/validation/test splits from other public
+versionsinsomecases. Systemsalsomaynotusetheunlabeledtestdataforthetasksinsystem
+developmentinanyway,maynotusethestructuredsourcedatathatwasusedtocollecttheWiC
+labels(sense-annotatedexamplesentencesfromWordNet,VerbNet,andWiktionary)inanyway,and
+maynotbuildsystemsthatshareinformationacrossseparatetestexamplesinanyway.
+Toensurereasonablecreditassignment,becausewebuildverydirectlyonpriorwork,weaskthe
+authorsofsubmittedsystemstodirectlynameandcitethespecificdatasetsthattheyuse,includingthe
+benchmarkdatasets. Wewillenforcethisasarequirementforpaperstobelistedontheleaderboard.
+4https://github.com/nyu-mll/jiant
+5https://github.com/huggingface/transformers
+7
+Table 3: Baseline performance on the SuperGLUE test sets and diagnostics. For CB we report
+accuracyandmacro-averageF1. ForMultiRCwereportF1onallanswer-optionsandexactmatch
+ofeachquestion’ssetofcorrectanswers. AX isthebroad-coveragediagnostictask,scoredusing
+b
+Matthews’correlation(MCC).AX istheWinogenderdiagnostic,scoredusingaccuracyandthe
+g
+genderparityscore(GPS).Allvaluesarescaledby100. TheAvgcolumnistheoverallbenchmark
+scoreonnon-AX tasks.Theboldednumbersreflectthebestmachineperformanceontask.*MultiRC
+∗
+hasmultipletestsetsreleasedonastaggeredschedule,andtheseresultsevaluateonaninstallationof
+thetestsetthatisasubsetofours.
+Model Avg BoolQ CB COPA MultiRC ReCoRD RTE WiC WSC AX
+b
+AXg
+Metrics Acc. F1/Acc. Acc. F1a/EM F1/EM Acc. Acc. Acc. MCC GPS Acc.
+MostFrequent 47.1 62.3 21.7/48.4 50.0 61.1/ 0.3 33.4/32.5 50.3 50.0 65.1 0.0 100.0/50.0
+CBoW 44.3 62.1 49.0/71.2 51.6 0.0 / 0.4 14.0/13.6 49.7 53.0 65.1 -0.4 100.0/50.0
+BERT 69.0 77.4 75.7/83.6 70.6 70.0/24.0 72.0/71.3 71.6 69.5 64.3 23.0 97.8/51.7
+BERT++ 71.5 79.0 84.7/90.4 73.8 70.0/24.1 72.0/71.3 79.0 69.5 64.3 38.0 99.4/51.4
+OutsideBest - 80.4 - / - 84.4 70.4*/24.5* 74.8/73.0 82.7 - - - - / -
+Human(est.) 89.8 89.0 95.8/98.9 100.0 81.8*/51.9* 91.7/91.3 93.6 80.0 100.0 77.0 99.3/99.7
+5 Experiments
+5.1 Baselines
+BERT OurmainbaselinesarebuiltaroundBERT,variantsofwhichareamongthemostsuccessful
+approach on GLUE at the time of writing. Specifically, we use the bert-large-cased variant.
+Following the practice recommended in Devlin et al. (2019), for each task, we use the simplest
+possiblearchitectureontopofBERT.Wefine-tuneacopyofthepretrainedBERTmodelseparately
+foreachtask,andleavethedevelopmentofmulti-tasklearningmodelstofuturework. Fortraining,
+weusetheprocedurespecifiedinDevlinetal.(2019): WeuseAdam(KingmaandBa,2014)withan
+initiallearningrateof10−5andfine-tuneforamaximumof10epochs.
+For classification tasks with sentence-pair inputs (BoolQ, CB, RTE, WiC), we concatenate the
+sentenceswitha[SEP]token,feedthefusedinputtoBERT,andusealogisticregressionclassifier
+thatseestherepresentationcorrespondingto[CLS]. ForWiC,wealsoconcatenatetherepresentation
+of the marked word. For COPA, MultiRC, and ReCoRD, for each answer choice, we similarly
+concatenatethecontextwiththatanswerchoiceandfeedtheresultingsequenceintoBERTtoproduce
+ananswerrepresentation. ForCOPA,weprojecttheserepresentationsintoascalar,andtakeasthe
+answerthechoicewiththehighestassociatedscalar. ForMultiRC,becauseeachquestioncanhave
+morethanonecorrectanswer,wefeedeachanswerrepresentationintoalogisticregressionclassifier.
+ForReCoRD,wealsoevaluatetheprobabilityofeachcandidateindependentofothercandidates,
+andtakethemostlikelycandidateasthemodel’sprediction. ForWSC,whichisaspan-basedtask,
+weuseamodelinspiredbyTenneyetal.(2019). GiventheBERTrepresentationforeachwordinthe
+originalsentence,wegetspanrepresentationsofthepronounandnounphraseviaaself-attention
+span-poolingoperator(Leeetal.,2017),beforefeedingitintoalogisticregressionclassifier.
+BERT++ WealsoreportresultsusingBERTwithadditionaltrainingonrelateddatasetsbefore
+fine-tuningonthebenchmarktasks,followingtheSTILTsstyleoftransferlearning(Phangetal.,
+2018). GiventheproductiveuseofMultiNLIinpretrainingandintermediatefine-tuningofpretrained
+languagemodels(Conneauetal.,2017;Phangetal.,2018,i.a.),forCB,RTE,andBoolQ,weuse
+MultiNLIasatransfertaskbyfirstusingtheaboveprocedureonMultiNLI.Similarly, giventhe
+similarityofCOPAtoSWAG(Zellersetal.,2018),wefirstfine-tuneBERTonSWAG.Theseresults
+arereportedasBERT++. Forallothertasks,wereusetheresultsofBERTfine-tunedonjustthattask.
+OtherBaselines Weincludeabaselinewhereforeachtaskwesimplypredictthemajorityclass,6
+aswellasabag-of-wordsbaselinewhereeachinputisrepresentedasanaverageofitstokens’GloVe
+wordvectors(the300D/840BreleasefromPenningtonetal.,2014). Finally,welistthebestknown
+resultoneachtaskasofMay2019,exceptontaskswhichwerecast(WSC),resplit(CB),orachieve
+6ForReCoRD,wepredicttheentitythathasthehighestF1withtheotherentityoptions.
+8
+thebestknownresult(WiC).TheoutsideresultsforCOPA,MultiRC,andRTEarefromSapetal.
+(2019),Trivedietal.(2019),andLiuetal.(2019d)respectively.
+HumanPerformance PilehvarandCamacho-Collados(2019),Khashabietal.(2018),Nangiaand
+Bowman (2019), and Zhang et al. (2018) respectively provide estimates for human performance
+onWiC,MultiRC,RTE,andReCoRD.Fortheremainingtasks, includingthediagnosticset, we
+estimatehumanperformancebyhiringcrowdworkerannotatorsthroughAmazon’sMechanicalTurk
+platformtoreannotateasampleofeachtestset. Wefollowatwostepprocedurewhereacrowd
+workercompletesashorttrainingphasebeforeproceedingtotheannotationphase,modeledafterthe
+methodusedbyNangiaandBowman(2019)forGLUE.SeeAppendixCfordetails.
+5.2 Results
+Table3showsresultsforallbaselines. ThemostfrequentclassandCBOWbaselinesdonotperform
+well overall, achieving near chance performance for several of the tasks. Using BERT increases
+the average SuperGLUE score by 25 points, attaining significant gains on all of the benchmark
+tasks, particularly MultiRC, ReCoRD, and RTE. On WSC, BERT actually performs worse than
+thesimplebaselines,likelyduetothesmallsizeofthedatasetandthelackofdataaugmentation.
+UsingMultiNLIasanadditionalsourceofsupervisionforBoolQ,CB,andRTEleadstoa2-5point
+improvementonalltasks. UsingSWAGasatransfertaskforCOPAseesan8pointimprovement.
+Ourbestbaselinesstilllagsubstantiallybehindhumanperformance. Onaverage,thereisanearly20
+pointgapbetweenBERT++andhumanperformance. ThelargestgapisonWSC,witha35point
+differencebetweenthebestmodelandhumanperformance. ThesmallestmarginsareonBoolQ,
+CB,RTE,andWiC,withgapsofaround10pointsoneachofthese. Webelievethesegapswillbe
+challengingtoclose: OnWSCandCOPA,humanperformanceisperfect. Onthreeothertasks,itis
+inthemid-to-high90s. Onthediagnostics,allmodelscontinuetolagsignificantlybehindhumans.
+ThoughallmodelsobtainnearperfectgenderparityscoresonWinogender,thisisduetothefactthat
+theyareobtainingaccuracynearthatofrandomguessing.
+6 Conclusion
+WepresentSuperGLUE,anewbenchmarkforevaluatinggeneral-purposelanguageunderstanding
+systems. SuperGLUEupdatestheGLUEbenchmarkbyidentifyinganewsetofchallengingNLU
+tasks,asmeasuredbythedifferencebetweenhumanandmachinebaselines. Thesetofeighttasksin
+ourbenchmarkemphasizesdiversetaskformatsandlow-datatrainingdatatasks,withnearlyhalfthe
+taskshavingfewerthan1kexamplesandallbutoneofthetaskshavingfewerthan10kexamples.
+WeevaluateBERT-basedbaselinesandfindthattheystilllagbehindhumansbynearly20points.
+GiventhedifficultyofSuperGLUEforBERT,weexpectthatfurtherprogressinmulti-task,transfer,
+andunsupervised/self-supervisedlearningtechniqueswillbenecessarytoapproachhuman-levelper-
+formanceonthebenchmark. Overall,wearguethatSuperGLUEoffersarichandchallengingtestbed
+forworkdevelopingnewgeneral-purposemachinelearningmethodsforlanguageunderstanding.
+7 Acknowledgments
+WethanktheoriginalauthorsoftheincludeddatasetsinSuperGLUEfortheircooperationinthe
+creation of the benchmark, as well as those who proposed tasks and datasets that we ultimately
+couldnotinclude. ThisworkwasmadepossibleinpartbyadonationtoNYUfromEricandWendy
+SchmidtmadebyrecommendationoftheSchmidtFuturesprogram. Wegratefullyacknowledge
+thesupportoftheNVIDIACorporationwiththedonationofaTitanVGPUusedatNYUforthis
+research,andfundingfromDeepMindforthehostingofthebenchmarkplatform. AWissupported
+bytheNationalScienceFoundationGraduateResearchFellowshipProgramunderGrantNo. DGE
+1342536. Anyopinions,findings,andconclusionsorrecommendationsexpressedinthismaterialare
+thoseoftheauthor(s)anddonotnecessarilyreflecttheviewsoftheNationalScienceFoundation.
+ThisprojectispartlysupportedbySamsungAdvancedInstituteofTechnology(NextGeneration
+DeepLearning:fromPatternRecognitiontoAI)andSamsungElectronics(ImprovingDeepLearning
+usingLatentStructure).
+9
+References
+StephenH.Bach,DanielRodriguez,YintaoLiu,ChongLuo,HaidongShao,CassandraXia,Souvik
+Sen,AlexanderRatner,BradenHancock,HoumanAlborzi,RahulKuchhal,ChristopherRé,and
+RobMalkin. Snorkeldrybell: Acasestudyindeployingweaksupervisionatindustrialscale. In
+SIGMOD.ACM,2018.
+Roy Bar Haim, Ido Dagan, Bill Dolan, Lisa Ferro, Danilo Giampiccolo, Bernardo Magnini, and
+IdanSzpektor. ThesecondPASCALrecognisingtextualentailmentchallenge. InProceedings
+of the Second PASCAL Challenges Workshop on Recognising Textual Entailment, 2006. URL
+http://u.cs.biu.ac.il/~nlp/RTE2/Proceedings/01.pdf.
+LuisaBentivogli,IdoDagan,HoaTrangDang,DaniloGiampiccolo,andBernardoMagnini. The
+fifthPASCALrecognizingtextualentailmentchallenge. InTextualAnalysisConference(TAC),
+2009. URLhttp://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.232.1231.
+SvenBuechel,AnnekeBuffone,BarrySlaff,LyleUngar,andJoãoSedoc. Modelingempathyand
+distressinreactiontonewsstories. InProceedingsofthe2018ConferenceonEmpiricalMethods
+inNaturalLanguageProcessing(EMNLP),2018.
+ChrisCallison-Burch,MilesOsborne,andPhilippKoehn. Re-evaluationtheroleofbleuinmachine
+translationresearch. InProceedingsoftheConferenceoftheEuropeanChapteroftheAssociation
+forComputationalLinguistics(EACL).AssociationforComputationalLinguistics,2006. URL
+https://www.aclweb.org/anthology/E06-1032.
+DanielCer,MonaDiab,EnekoAgirre,InigoLopez-Gazpio,andLuciaSpecia. Semeval-2017task
+1: Semantictextualsimilaritymultilingualandcrosslingualfocusedevaluation. InProceedings
+of the 11th International Workshop on Semantic Evaluation (SemEval-2017). Association for
+Computational Linguistics, 2017. doi: 10.18653/v1/S17-2001. URL https://www.aclweb.
+org/anthology/S17-2001.
+EunsolChoi,HeHe,MohitIyyer,MarkYatskar,Wen-tauYih,YejinChoi,PercyLiang,andLuke
+Zettlemoyer. QuAC:Questionansweringincontext. InProceedingsofthe2018Conferenceon
+EmpiricalMethodsinNaturalLanguageProcessing(EMNLP).AssociationforComputational
+Linguistics,2018a.
+EunsolChoi,OmerLevy,YejinChoi,andLukeZettlemoyer. Ultra-fineentitytyping. InProceedings
+oftheAssociationforComputationalLinguistics(ACL).AssociationforComputationalLinguistics,
+2018b. URLhttps://www.aclweb.org/anthology/P18-1009.
+ChristopherClark,KentonLee,Ming-WeiChang,TomKwiatkowski,MichaelCollins,andKristina
+Toutanova. Boolq: Exploringthesurprisingdifficultyofnaturalyes/noquestions. InProceedings
+of the 2019 Conference of the North American Chapter of the Association for Computational
+Linguistics: HumanLanguageTechnologies,Volume1(LongandShortPapers),pages2924–2936,
+2019a.
+KevinClark,Minh-ThangLuong,UrvashiKhandelwal,ChristopherD.Manning,andQuocV.Le.
+BAM!Born-againmulti-task networksfornatural languageunderstanding. In Proceedingsof
+theAssociationofComputationalLinguistics(ACL).AssociationforComputationalLinguistics,
+2019b. URLhttps://arxiv.org/pdf/1907.04829.pdf.
+RonanCollobertandJasonWeston. Aunifiedarchitecturefornaturallanguageprocessing: Deep
+neuralnetworkswithmultitasklearning. InProceedingsofthe25thInternationalConferenceon
+MachineLearning(ICML).AssociationforComputingMachinery,2008. URLhttps://dl.acm.
+org/citation.cfm?id=1390177.
+AlexisConneauandDouweKiela. SentEval: Anevaluationtoolkitforuniversalsentencerepresenta-
+tions. InProceedingsofthe11thLanguageResourcesandEvaluationConference.EuropeanLan-
+guageResourceAssociation,2018. URLhttps://www.aclweb.org/anthology/L18-1269.
+Alexis Conneau, Douwe Kiela, Holger Schwenk, Loïc Barrault, and Antoine Bordes. Super-
+vised learning of universal sentence representations from natural language inference data. In
+Proceedings of the 2017 Conference on Empirical Methods in Natural Language Processing
+10
+(EMNLP).AssociationforComputationalLinguistics,2017. doi: 10.18653/v1/D17-1070. URL
+https://www.aclweb.org/anthology/D17-1070.
+Ido Dagan, Oren Glickman, and Bernardo Magnini. The PASCAL recognising textual entail-
+ment challenge. In Machine Learning Challenges. Evaluating Predictive Uncertainty, Vi-
+sual Object Classification, and Recognising Textual Entailment. Springer, 2006. URL https:
+//link.springer.com/chapter/10.1007/11736790_9.
+Andrew M Dai and Quoc V Le. Semi-supervised sequence learning. In Advances in Neural
+InformationProcessingSystems(NeurIPS).CurranAssociates,Inc.,2015. URLhttp://papers.
+nips.cc/paper/5949-semi-supervised-sequence-learning.pdf.
+Marie-CatherinedeMarneffe,MandySimons,andJudithTonhauser. TheCommitmentBank: Investi-
+gatingprojectioninnaturallyoccurringdiscourse. 2019. ToappearinProceedingsofSinnund
+Bedeutung23.Datacanbefoundathttps://github.com/mcdm/CommitmentBank/.
+JacobDevlin,Ming-WeiChang,KentonLee,andKristinaToutanova. BERT:Pre-trainingofdeep
+bidirectionaltransformersforlanguageunderstanding. InProceedingsoftheConferenceofthe
+NorthAmericanChapteroftheAssociationforComputationalLinguistics: HumanLanguage
+Technologies (NAACL-HLT). Association for Computational Linguistics, 2019. URL https:
+//arxiv.org/abs/1810.04805.
+WilliamB.DolanandChrisBrockett. Automaticallyconstructingacorpusofsententialparaphrases.
+InProceedingsofIWP,2005.
+Manaal Faruqui and Dipanjan Das. Identifying well-formed natural language questions. In Pro-
+ceedingsoftheConferenceonEmpiricalMethodsinNaturalLanguageProcessing(EMNLP).
+AssociationforComputationalLinguistics,2018.URLhttps://www.aclweb.org/anthology/
+D18-1091.
+TommasoFurlanello,ZacharyCLipton,MichaelTschannen,LaurentItti,andAnimaAnandkumar.
+Bornagainneuralnetworks. InternationalConferenceonMachineLearning(ICML),2018. URL
+http://proceedings.mlr.press/v80/furlanello18a.html.
+MattGardner,JoelGrus,MarkNeumann,OyvindTafjord,PradeepDasigi,NelsonF.Liu,Matthew
+Peters,MichaelSchmitz,andLukeS.Zettlemoyer. AllenNLP:Adeepsemanticnaturallanguage
+processingplatform. InProceedingsofWorkshopforNLPOpenSourceSoftware,2017. URL
+https://www.aclweb.org/anthology/W18-2501.
+DaniloGiampiccolo,BernardoMagnini,IdoDagan,andBillDolan. ThethirdPASCALrecognizing
+textualentailmentchallenge. InProceedingsoftheACL-PASCALWorkshoponTextualEntailment
+andParaphrasing.AssociationforComputationalLinguistics,2007.
+Hila Gonen and Yoav Goldberg. Lipstick on a pig: Debiasing methods cover up systematic
+gender biases in word embeddings but do not remove them. In Proceedings of the 2019
+Conference of the North American Chapter of the Association for Computational Linguistics:
+Human Language Technologies, Volume 1 (Long and Short Papers), pages 609–614, Min-
+neapolis, Minnesota, June 2019. Association for Computational Linguistics. URL https:
+//www.aclweb.org/anthology/N19-1061.
+FelixHill,KyunghyunCho,andAnnaKorhonen. Learningdistributedrepresentationsofsentences
+from unlabelled data. In Proceedings of the Conference of the North American Chapter of
+theAssociationforComputationalLinguistics: HumanLanguageTechnologies(NAACL-HLT).
+Association for Computational Linguistics, 2016. doi: 10.18653/v1/N16-1162. URL https:
+//www.aclweb.org/anthology/N16-1162.
+GeoffreyHinton,OriolVinyals,andJeffDean. Distillingtheknowledgeinaneuralnetwork. arXiv
+preprint1503.02531,2015. URLhttps://arxiv.org/abs/1503.02531.
+RobinJiaandPercyLiang. Adversarialexamplesforevaluatingreadingcomprehensionsystems. In
+ProceedingsoftheConferenceonEmpiricalMethodsinNaturalLanguageProcessing(EMNLP).
+Association for Computational Linguistics, 2017. doi: 10.18653/v1/D17-1215. URL https:
+//www.aclweb.org/anthology/D17-1215.
+11
+DanielKhashabi,SnigdhaChaturvedi,MichaelRoth,ShyamUpadhyay,andDanRoth. Looking
+beyond the surface: A challenge set for reading comprehension over multiple sentences. In
+ProceedingsoftheConferenceoftheNorthAmericanChapteroftheAssociationforComputa-
+tionalLinguistics: HumanLanguageTechnologies(NAACL-HLT).AssociationforComputational
+Linguistics,2018. URLhttps://www.aclweb.org/anthology/papers/N/N18/N18-1023/.
+DiederikP.KingmaandJimmyBa. Adam: Amethodforstochasticoptimization. arXivpreprint
+1412.6980,2014. URLhttps://arxiv.org/abs/1412.6980.
+RyanKiros,YukunZhu,RuslanRSalakhutdinov,RichardZemel,RaquelUrtasun,AntonioTorralba,
+andSanjaFidler. Skip-thoughtvectors. InAdvancesinneuralinformationprocessingsystems,
+2015.
+NikitaKitaev,StevenCao,andDanKlein. Multilingualconstituencyparsingwithself-attentionand
+pre-training. InProceedingsofthe57thAnnualMeetingoftheAssociationforComputationalLin-
+guistics,pages3499–3505,Florence,Italy,July2019.AssociationforComputationalLinguistics.
+doi: 10.18653/v1/P19-1340. URLhttps://www.aclweb.org/anthology/P19-1340.
+VidKocijan,Ana-MariaCretu,Oana-MariaCamburu,YordanYordanov,andThomasLukasiewicz.
+A surprisingly robust trick for the Winograd schema challenge. In Proceedings of the 57th
+AnnualMeetingoftheAssociationforComputationalLinguistics,pages4837–4842,Florence,
+Italy,July2019.AssociationforComputationalLinguistics. doi: 10.18653/v1/P19-1478. URL
+https://www.aclweb.org/anthology/P19-1478.
+Kenton Lee, Luheng He, Mike Lewis, and Luke Zettlemoyer. End-to-end neural coreference
+resolution. InProceedingsofthe2017ConferenceonEmpiricalMethodsinNaturalLanguage
+Processing. Association for Computational Linguistics, September 2017. doi: 10.18653/v1/
+D17-1018. URLhttps://www.aclweb.org/anthology/D17-1018.
+Hector Levesque, Ernest Davis, and Leora Morgenstern. The Winograd schema challenge. In
+ThirteenthInternationalConferenceonthePrinciplesofKnowledgeRepresentationandReasoning,
+2012. URLhttp://dl.acm.org/citation.cfm?id=3031843.3031909.
+Chia-WeiLiu,RyanLowe,IulianSerban, MikeNoseworthy, LaurentCharlin,andJoellePineau.
+Hownottoevaluateyourdialoguesystem: Anempiricalstudyofunsupervisedevaluationmetrics
+fordialogueresponsegeneration. InProceedingsofthe2016ConferenceonEmpiricalMethodsin
+NaturalLanguageProcessing.AssociationforComputationalLinguistics,2016. doi: 10.18653/
+v1/D16-1230. URLhttps://www.aclweb.org/anthology/D16-1230.
+NelsonF.Liu,MattGardner,YonatanBelinkov,MatthewE.Peters,andNoahA.Smith. Linguistic
+knowledgeandtransferabilityofcontextualrepresentations. InProceedingsoftheConferenceof
+theNorthAmericanChapteroftheAssociationforComputationalLinguistics: HumanLanguage
+Technologies (NAACL-HLT). Association for Computational Linguistics, 2019a. URL https:
+//arxiv.org/abs/1903.08855.
+Nelson F. Liu, Roy Schwartz, and Noah A. Smith. Inoculation by fine-tuning: A method for
+analyzingchallengedatasets. InProceedingsoftheConferenceoftheNorthAmericanChapter
+of the Association for Computational Linguistics: Human Language Technologies (NAACL-
+HLT).AssociationforComputationalLinguistics,2019b. URLhttps://arxiv.org/abs/1904.
+02668.
+XiaodongLiu,PengchengHe,WeizhuChen,andJianfengGao. Improvingmulti-taskdeepneural
+networksviaknowledgedistillationfornaturallanguageunderstanding.arXivpreprint1904.09482,
+2019c. URLhttp://arxiv.org/abs/1904.09482.
+XiaodongLiu,PengchengHe,WeizhuChen,andJianfengGao. Multi-taskdeepneuralnetworksfor
+naturallanguageunderstanding. arXivpreprint1901.11504,2019d.
+KaijiLu,PiotrMardziel,FangjingWu,PreetamAmancharla,andAnupamDatta. Genderbiasin
+neuralnaturallanguageprocessing. arXivpreprint1807.11714,2018. URLhttp://arxiv.org/
+abs/1807.11714.
+12
+Bryan McCann, James Bradbury, Caiming Xiong, and Richard Socher. Learned in transla-
+tion: Contextualized word vectors. In Advances in Neural Information Processing Sys-
+tems (NeurIPS). Curran Associates, Inc., 2017. URL http://papers.nips.cc/paper/
+7209-learned-in-translation-contextualized-word-vectors.pdf.
+BryanMcCann,NitishShirishKeskar,CaimingXiong,andRichardSocher. Thenaturallanguage
+decathlon: Multitasklearningasquestionanswering. arXivpreprint1806.08730, 2018. URL
+https://arxiv.org/abs/1806.08730.
+R.ThomasMcCoy,ElliePavlick,andTalLinzen. Rightforthewrongreasons: Diagnosingsyntactic
+heuristicsinnaturallanguageinference. InProceedingsoftheAssociationforComputational
+Linguistics(ACL).AssociationforComputationalLinguistics,2019. URLhttps://arxiv.org/
+abs/1902.01007.
+RichardT.McCoyandTalLinzen. Non-entailedsubsequencesasachallengefornaturallanguage
+inference. InProceedingsoftheSocietyforComputationalinLinguistics(SCiL)2019,2019. URL
+https://scholarworks.umass.edu/scil/vol2/iss1/46/.
+GeorgeAMiller. WordNet: alexicaldatabaseforenglish. CommunicationsoftheACM,1995. URL
+https://www.aclweb.org/anthology/H94-1111.
+AakankshaNaik,AbhilashaRavichander,NormanM.Sadeh,CarolynPensteinRosé,andGraham
+Neubig. Stress test evaluationfor natural language inference. In International Conference on
+ComputationalLinguistics(COLING),2018.
+Nikita Nangia and Samuel R. Bowman. Human vs. Muppet: A conservative estimate of hu-
+man performance on the GLUE benchmark. In Proceedings of the Association of Compu-
+tational Linguistics (ACL). Association for Computational Linguistics, 2019. URL https:
+//woollysocks.github.io/assets/GLUE_Human_Baseline.pdf.
+Adam Paszke, Sam Gross, Soumith Chintala, Gregory Chanan, Edward Yang, Zachary DeVito,
+Zeming Lin, Alban Desmaison, Luca Antiga, and Adam Lerer. Automatic differentiation in
+PyTorch. InAdvancesinNeuralInformationProcessingSystems(NeurIPS).CurranAssociates,
+Inc.,2017. URLhttps://openreview.net/pdf?id=BJJsrmfCZ.
+Jeffrey Pennington, Richard Socher, and Christopher Manning. Glove: Global vectors for word
+representation. InProceedingsoftheConferenceonEmpiricalMethodsinNaturalLanguagePro-
+cessing(EMNLP).AssociationforComputationalLinguistics,2014. doi: 10.3115/v1/D14-1162.
+URLhttps://www.aclweb.org/anthology/D14-1162.
+MatthewPeters,MarkNeumann,MohitIyyer,MattGardner,ChristopherClark,KentonLee,and
+LukeZettlemoyer. Deepcontextualizedwordrepresentations. InProceedingsoftheConferenceof
+theNorthAmericanChapteroftheAssociationforComputationalLinguistics: HumanLanguage
+Technologies(NAACL-HLT).AssociationforComputationalLinguistics,2018. doi: 10.18653/v1/
+N18-1202. URLhttps://www.aclweb.org/anthology/N18-1202.
+JasonPhang,ThibaultFévry,andSamuelRBowman. SentenceencodersonSTILTs: Supplementary
+training on intermediate labeled-data tasks. arXiv preprint 1811.01088, 2018. URL https:
+//arxiv.org/abs/1811.01088.
+Mohammad Taher Pilehvar and Jose Camacho-Collados. WiC: The word-in-context dataset for
+evaluatingcontext-sensitivemeaningrepresentations. InProceedingsoftheConferenceofthe
+NorthAmericanChapteroftheAssociationforComputationalLinguistics: HumanLanguage
+Technologies (NAACL-HLT). Association for Computational Linguistics, 2019. URL https:
+//arxiv.org/abs/1808.09121.
+AdamPoliak,AparajitaHaldar,RachelRudinger,J.EdwardHu,ElliePavlick,AaronStevenWhite,
+andBenjaminVanDurme. Collectingdiversenaturallanguageinferenceproblemsforsentence
+representation evaluation. In Proceedings of the 2018 Conference on Empirical Methods in
+NaturalLanguageProcessing.AssociationforComputationalLinguistics,2018. URLhttps:
+//www.aclweb.org/anthology/D18-1007.
+13
+Alec Radford, Karthik Narasimhan, Tim Salimans, and Ilya Sutskever. Improving language un-
+derstanding by generative pre-training, 2018. Unpublished ms. available through a link at
+https://blog.openai.com/language-unsupervised/.
+PranavRajpurkar,JianZhang,KonstantinLopyrev,andPercyLiang. SQuAD:100,000+questions
+formachinecomprehensionoftext. InProceedingsoftheConferenceonEmpiricalMethodsin
+NaturalLanguageProcessing(EMNLP).AssociationforComputationalLinguistics,2016. doi:
+10.18653/v1/D16-1264. URLhttp://aclweb.org/anthology/D16-1264.
+MelissaRoemmele,CosminAdrianBejan,andAndrewS.Gordon. Choiceofplausiblealternatives:
+Anevaluationofcommonsensecausalreasoning. In2011AAAISpringSymposiumSeries,2011.
+RachelRudinger, JasonNaradowsky, BrianLeonard, andBenjaminVanDurme. Genderbiasin
+coreferenceresolution. InProceedingsofthe2018ConferenceoftheNorthAmericanChapter
+oftheAssociationforComputationalLinguistics: HumanLanguageTechnologies.Association
+forComputationalLinguistics,2018. doi: 10.18653/v1/N18-2002. URLhttps://www.aclweb.
+org/anthology/N18-2002.
+MaartenSap,HannahRashkin,DerekChen,RonanLeBras,andYejinChoi. SocialIQa: Common-
+sensereasoningaboutsocialinteractions. ProceedingsoftheConferenceonEmpiricalMethodsin
+NaturalLanguageProcessing(EMNLP),2019. URLhttps://arxiv.org/abs/1904.09728.
+NathanSchneiderandNoahASmith. Acorpusandmodelintegratingmultiwordexpressionsand
+supersenses. InProceedingsoftheConferenceoftheNorthAmericanChapteroftheAssociation
+forComputationalLinguistics: HumanLanguageTechnologies(NAACL-HLT).Associationfor
+ComputationalLinguistics,2015. URLhttps://www.aclweb.org/anthology/N15-1177.
+KarinKipperSchuler. Verbnet: ABroad-coverage,ComprehensiveVerbLexicon. PhDthesis,2005.
+URLhttp://verbs.colorado.edu/~kipper/Papers/dissertation.pdf.
+Richard Socher, Alex Perelygin, Jean Wu, Jason Chuang, Christopher D Manning, Andrew Ng,
+andChristopher.Potts. Recursivedeepmodelsforsemanticcompositionalityoverasentiment
+treebank.InProceedingsoftheConferenceonEmpiricalMethodsinNaturalLanguageProcessing
+(EMNLP).AssociationforComputationalLinguistics,2013. URLhttps://www.aclweb.org/
+anthology/D13-1170.
+IanTenney,PatrickXia,BerlinChen,AlexWang,AdamPoliak,RThomasMcCoy,NajoungKim,
+BenjaminVanDurme,SamBowman,DipanjanDas,andElliePavlick. Whatdoyoulearnfrom
+context? probingforsentencestructureincontextualizedwordrepresentations. InternationalCon-
+ferenceonLearningRepresentations(ICLR),2019. URLhttps://openreview.net/forum?
+id=SJzSgnRcKX.
+HarshTrivedi,HeeyoungKwon,TusharKhot,AshishSabharwal,andNiranjanBalasubramanian.
+Repurposing entailment for multi-hop question answering tasks. In Proceedings of the 2019
+Conference of the North American Chapter of the Association for Computational Linguistics:
+HumanLanguageTechnologies,Volume1(LongandShortPapers),pages2948–2958,Minneapolis,
+Minnesota,June2019.AssociationforComputationalLinguistics. doi: 10.18653/v1/N19-1302.
+URLhttps://www.aclweb.org/anthology/N19-1302.
+Alex Wang, Amanpreet Singh, Julian Michael, Felix Hill, Omer Levy, and Samuel R. Bowman.
+GLUE:Amulti-taskbenchmarkandanalysisplatformfornaturallanguageunderstanding. In
+International Conference on Learning Representations, 2019a. URL https://openreview.
+net/forum?id=rJ4km2R5t7.
+AlexWang, IanF.Tenney, YadaPruksachatkun,KatherinYu,JanHula,PatrickXia,RaghuPap-
+pagari, Shuning Jin, R. Thomas McCoy, Roma Patel, Yinghui Huang, Jason Phang, Edouard
+Grave,HaokunLiu,NajoungKim,PhuMonHtut,ThibaultF’evry,BerlinChen,NikitaNangia,
+AnhadMohananey,KatharinaKann,ShikhaBordia,NicolasPatry,DavidBenton,ElliePavlick,
+and Samuel R. Bowman. jiant 1.2: A software toolkit for research on general-purpose text
+understandingmodels. http://jiant.info/,2019b.
+AlexWarstadt,AmanpreetSingh,andSamuelRBowman. Neuralnetworkacceptabilityjudgments.
+TransactionsoftheAssociationofComputationalLinguists,2019. URLhttps://arxiv.org/
+abs/1805.12471.
+14
+KellieWebster,MartaRecasens,VeraAxelrod,andJasonBaldridge. MindtheGAP:Abalanced
+corpus of gendered ambiguous pronouns. Transactions of the Association for Computational
+Linguistics(TACL),2018. URLhttps://www.aclweb.org/anthology/Q18-1042.
+Adina Williams, Nikita Nangia, and Samuel Bowman. A broad-coverage challenge corpus for
+sentenceunderstandingthroughinference.InProceedingsoftheConferenceoftheNorthAmerican
+ChapteroftheAssociationforComputationalLinguistics:HumanLanguageTechnologies(NAACL-
+HLT).AssociationforComputationalLinguistics,2018.URLhttp://aclweb.org/anthology/
+N18-1101.
+ZhilinYang,ZihangDai,YimingYang,JaimeCarbonell,RuslanSalakhutdinov,andQuocV.Le.
+XLNet: Generalizedautoregressivepretrainingforlanguageunderstanding. AdvancesinNeural
+InformationProcessingSystems(NeurIPS),2019.
+Fabio Massimo Zanzotto and Lorenzo Ferrone. Have you lost the thread? discovering ongoing
+conversationsinscattereddialogblocks. ACMTransactionsonInteractiveIntelligentSystems
+(TiiS),2017.
+RowanZellers,YonatanBisk,RoySchwartz,andYejinChoi.SWAG:Alarge-scaleadversarialdataset
+for grounded commonsense inference. 2018. URL https://www.aclweb.org/anthology/
+D18-1009.
+ShengZhang, XiaodongLiu, JingjingLiu, JianfengGao, KevinDuh, andBenjaminVanDurme.
+ReCoRD:Bridgingthegapbetweenhumanandmachinecommonsensereadingcomprehension.
+arXivpreprint1810.12885,2018.
+YuanZhang,JasonBaldridge,andLuhengHe. PAWS:Paraphraseadversariesfromwordscrambling.
+ProceedingsoftheConferenceoftheNorthAmericanChapteroftheAssociationforComputational
+Linguistics: HumanLanguageTechnologies(NAACL-HLT),2019. URLhttps://arxiv.org/
+abs/1904.01130.
+Jieyu Zhao, Tianlu Wang, Mark Yatskar, Vicente Ordonez, and Kai-Wei Chang. Gender bias in
+coreferenceresolution: Evaluationanddebiasingmethods. InProceedingsofthe2018Conference
+oftheNorthAmericanChapteroftheAssociationforComputationalLinguistics:HumanLanguage
+Technologies.AssociationforComputationalLinguistics,2018. doi: 10.18653/v1/N18-2003. URL
+https://www.aclweb.org/anthology/N18-2003.
+15
+Table4: BaselineperformanceontheSuperGLUEdevelopment.
+Model Avg BoolQ CB COPA MultiRC ReCoRD RTE WiC WSC
+Metrics Acc. Acc./F1 Acc. F1a/EM F1/EM Acc. Acc. Acc.
+MostFrequentClass 47.7 62.2 50.0/22.2 55.0 59.9/0.8 32.4/31.5 52.7 50.0 63.5
+CBOW 47.7 62.4 71.4/49.6 63.0 20.3/0.3 14.4/13.8 54.2 55.3 61.5
+BERT 72.2 77.7 94.6/93.7 69.0 70.5/24.7 70.6/69.8 75.8 74.9 68.3
+BERT++ 74.6 80.1 96.4/95.0 78.0 70.5/24.7 70.6/69.8 82.3 74.9 68.3
+A DevelopmentSetResults
+InTable4,wepresentresultsofthebaselinesontheSuperGLUEtasksdevelopmentsets.
+B PerformanceonGLUEDiagnostics
+Figure2showstheperformanceontheGLUEdiagnosticsdatasetforsystemssubmittedtothepublic
+leaderboard.
+80
+60
+40
+20
+0
+20
+Chance BERT + BAM
+40 BiLSTM+ELMo+Attn SemBERT
+OpenAI GPT Snorkel MeTaL
+BERT + Single-task Adapters ALICE (Large)
+60 BERT (Large) MT-DNN (ensemble)
+BERT on STILTs XLNet-Large (ensemble)
+Disjunction Downward Monotone Restrictivity Double Negation Prepositional Phrases
+Figure2: PerformanceofGLUEsubmissionsonselecteddiagnosticcategories,reportedusingthe
+R metricscaledupby100,asinWangetal.(2019a,seepaperforadescriptionofthecategories).
+3
+Someinitiallydifficultcategories, likedoublenegation, sawgainsfromadvancesonGLUE,but
+othersremainhard(restrictivity)orevenadversarial(disjunction,downwardmonotone).
+C HumanPerformanceEstimation
+For collecting data to establish human performance on the SuperGLUE tasks, we follow a two
+stepprocedurewherewefirstprovidesometrainingtothecrowdworkersbeforetheyproceedto
+annotation. Forbothstepsandalltasks,theaveragepayrateis$23.75/hr.7
+Inthetrainingphase,workersareprovidedwithinstructionsonthetask,linkedtoanFAQpage,and
+areaskedtoannotateupto30examplesfromthedevelopmentset. Afteransweringeachexample,
+workersarealsoaskedtochecktheirworkagainsttheprovidedgroundtruthlabel. Afterthetraining
+phase is complete, we provide the qualification to work on the annotation phase to all workers
+whoannotatedaminimumoffiveexamples,i.e. completedfiveHITsduringtrainingandachieved
+performanceat,orabovethemedianperformanceacrossallworkersduringtraining.
+7Thisestimateistakenfromhttps://turkerview.com.
+16
+Intheannotationphase,workersareprovidedwiththesameinstructionsasthetrainingphase,and
+arelinkedtothesameFAQpage. TheinstructionsforalltasksareprovidedinAppendixC.Forthe
+annotationphasewerandomlysample100examplesfromthetask’stestset,withtheexceptionof
+WSCwhereweannotatethefulltestset. Foreachexample,wecollectannotationsfromfiveworkers
+andtakeamajorityvotetoestimatehumanperformance. Foradditionaldetails,seeAppendixC.3.
+C.1 TrainingPhaseInstructions
+Inthetrainingstep,weprovideworkerswithbriefinstructionsaboutthetrainingphase. Anexample
+oftheseinstructionsisgivenTable5. Thesetraininginstructionsarethesameacrosstasks,onlythe
+tasknameintheinstructionsischanged.
+C.2 TaskInstructions
+Duringtrainingandannotationforeachtask,weprovideworkerswithbriefinstructionstailoredto
+thetask. WealsolinkworkerstoanFAQpageforthetask. Tables6,7,8,and9,showtheinstructions
+weusedforallfourtasks: COPA,CommitmentBank,WSC,andBoolQrespectively. Theinstructions
+giventocrowdworkersforannotationsonthediagnosticandbiasdiagnosticdatasetsareshownin
+Table11.
+Wecollecteddatatoproduceconservativeestimatesforhumanperformanceonseveraltasksthatwe
+didnotultimatelyincludeinourbenchmark,includingGAP(Websteretal.,2018),PAWS(Zhang
+etal.,2019),QuoraInsincereQuestions,8UltrafineEntityTyping(Choietal.,2018b),andEmpathetic
+Reactions datasets (Buechel et al., 2018). The instructions we used for these tasks are shown in
+Tables12,13,14,15,and16.
+C.3 TaskSpecificDetails
+ForWSCandCOPAweprovideannotatorswithatwowayclassificationproblem. Wethenuse
+majorityvoteacrossannotationstocalculatehumanperformance.
+CommitmentBank We follow the authors in providing annotators with a 7-way classification
+problem. Wethencollapsetheannotationsinto3classesbyusingthesamerangesforbucketingused
+bydeMarneffeetal.(2019). Wethenusemajorityvotetogethumanperformancenumbersonthe
+task.
+Furthermore,fortrainingonCommitmentBankwerandomlysampleexamplesfromthelowinter-
+annotatoragreementportionoftheCommitmentBankdatathatisnotincludedinthebenchmark
+versionofthetask. Theselowagreementexamplesaregenerallyhardertoclassifysincetheyare
+moreambiguous.
+DiagnosticDataset Sincethediagnosticdatasetdoesnotcomewithaccompanyingtrainingdata,
+wetrainourworkersonexamplesfromRTE’sdevelopmentset. RTEisalsoatextualentailment
+taskandisthemostcloselyrelatedtaskinthemainbenchmark. Providingthecrowdworkerswith
+trainingonRTEenablesthemtolearnlabeldefinitionswhichshouldgeneralizetothediagnostic
+dataset.
+UltrafineEntityTyping Wecastthetaskintoabinaryclassificationproblemtomakeitaneasier
+taskfornon-expertcrowdworkers. Weworkincooperationwiththeauthorsofthedataset(Choi
+etal.,2018b)todothisreformulation: Wegiveworkersonepossibletagforawordorphraseand
+askedthemtoclassifythetagasbeingapplicableornot.
+The authors used WordNet (Miller, 1995) to expand the set of labels to include synonyms and
+hypernymsfromWordNet. Theythenaskedfiveannotatorstovalidatethesetags. Thetagsfrom
+this validation had high agreement, and were included in the publicly available Ultrafine Entity
+Typingdataset,9Thisconstitutesoursetofpositiveexamples. Therestofthetagsfromthevalidation
+procedurethatarenotinthepublicdatasetconstituteournegativeexamples.
+8https://www.kaggle.com/c/quora-insincere-questions-classification/data
+9https://homes.cs.washington.edu/~eunsol/open_entity.html
+17
+GAP FortheGenderedAmbiguousPronounCoreferencetask(GAP,Websteretal.,2018), we
+simplifiedthetaskbyprovidingnounphrasespansaspartoftheinput,thusreducingtheoriginal
+structurepredictiontasktoaclassificationtask. Thistaskwaspresentedtocrowdworkersasathree
+wayclassificationproblem: ChoosespanA,B,orneither.
+D ExcludedTasks
+Inthissectionweprovidesomeexamplesoftasksthatweevaluatedforinclusionbutultimatelycould
+notinclude. Wereportontheseexcludedtasksonlywiththepermissionoftheirauthors. Weturned
+downmanymedicaltextdatasetsbecausetheyareusuallyonlyaccessiblewithexplicitpermission
+andcredentialsfromthedataowners.
+TaskslikeQuAC(Choietal.,2018a)andSTREUSLE(SchneiderandSmith,2015)differedsubstan-
+tiallyfromtheformatofothertasksinourbenchmark,whichweworriedwouldincentivizeusers
+tospendsignificanteffortontask-specificmodeldesigns,ratherthanfocusingongeneral-purpose
+techniques. ItwaschallengingtotrainannotatorstodowellonQuoraInsincereQuestions10,Empa-
+theticReactions(Buecheletal.,2018),andarecastversionofUltra-FineEntityTyping(Choietal.,
+2018b,seeAppendixC.3fordetails),leadingtolowhumanperformance. BERTachievedveryhigh
+orsuperhumanperformanceonQueryWell-Formedness(FaruquiandDas,2018),PAWS(Zhang
+etal.,2019),DiscoveringOngoingConversations(ZanzottoandFerrone,2017),andGAP(Webster
+etal.,2018).
+Duringtheprocessofselectingtasksforourbenchmark,wecollectedhumanperformancebaselines
+andrunBERT-basedmachinebaselinesforsometasksthatweultimatelyexcludedfromourtask
+list. WechosetoexcludethesetasksbecauseourBERTbaselineperformsbetterthanourhuman
+performancebaselineorifthegapbetweenhumanandmachineperformanceissmall.
+OnQuoraInsincereQuestionsourBERTbaselineoutperformsourhumanbaselinebyasmallmargin:
+an F1 score of 67.2 versus 66.7 for BERT and human baselines respectively. Similarly, on the
+EmpatheticReactionsdataset,BERToutperformsourhumanbaseline,whereBERT’spredictions
+haveaPearsoncorrelationof0.45onempathyand0.55ondistress,comparedto0.45and0.35for
+ourhumanbaseline. ForPAWS-Wiki,wereportthatBERTachievesanaccuracyof91.9%,whileour
+humanbaselineachieved84%accuracy. Thesethreetasksareexcludedfromthebenchmarksince
+our,admittedlyconservative,humanbaselinesareworsethanmachineperformance. Ourhuman
+performancebaselinesaresubjecttotheclarityofourinstructions(allinstructionscanbefoundin
+AppendixC),andcrowdworkersengagementandability.
+For the Query Well-Formedness task, the authors set an estimate human performance at 88.4%
+accuracy. OurBERTbaselinemodelreachesanaccuracyof82.3%. Whilethereisapositivegapon
+thistask,thegapwassmallerthanwewerewerewillingtotolerate. Similarly,onourrecastversion
+oftheUltrafineEntityTyping,weobservetoosmallagapbetweenhuman(60.2F1)andmachine
+performance(55.0F1). OurrecastingforthistaskisdescribedinAppendixC.2. OnGAP,when
+takenasaclassificationproblemwithouttherelatedtaskofspanselection(detailsinC.2),BERT
+performs(91.0F1)comparablytoourhumanbaseline(94.9F1). Giventhissmallmargin,wealso
+excludeGAP.
+OnDiscoveringOngoingConversations,ourBERTbaselineachievesanF1of51.9onaversionof
+thetaskcastassentencepairclassification(giventwosnippetsoftextsfromplays,determineifthe
+secondsnippetisacontinuationofthefirst). Thisdatasetisveryclassimbalanced(90%negative),so
+wealsoexperimentedwithaclass-balancedversiononwhichourBERTbaselinesachieves88.4
+F1. Qualitatively,wealsofoundthetaskchallengingforhumansastherewaslittlecontextforthe
+textsnippetsandtheexamplesweredrawnfromplaysusingearlyEnglish. Giventhisfairlyhigh
+machineperformanceandchallengingnatureforhumans,weexcludethistaskfromourbenchmark.
+Instructionstablesbeginonthefollowingpage.
+10https://www.kaggle.com/c/quora-insincere-questions-classification/data
+18
+Table5: Theinstructionsgiventocrowd-sourcedworkerdescribingthetrainingphasefortheChoice
+ofPlausibleAnswers(COPA)task.
+TheNewYorkUniversityCenterforDataScienceiscollectingyouranswersforuseinresearch
+oncomputerunderstandingofEnglish. Thankyouforyourhelp!
+Thisprojectisatrainingtaskthatneedstobecompletedbeforeworkingonthemainproject
+onAMTnamedHumanPerformance: PlausibleAnswer. Onceyouaredonewiththetraining,
+pleaseproceedtothemaintask! Thequalificationapprovalisnotimmediatebutwewilladd
+youtoourqualifiedworkerslistwithinaday.
+Inthistraining,youmustanswerthequestiononthepageandthen,toseehowyoudid,click
+the Check Work button at the bottom of the page before hitting Submit. The Check Work
+button will reveal the true label. Please use this training and the provided answers to build
+anunderstandingofwhattheanswerstothesequestionslooklike(themainproject,Human
+Performance: PlausibleAnswer,doesnothavetheanswersonthepage).
+Table6: Task-specificinstructionsforChoiceofPlausibleAlternatives(COPA).Theseinstructions
+wereprovidedduringbothtrainingandannotationphases.
+PlausibleAnswerInstructions
+TheNewYorkUniversityCenterforDataScienceiscollectingyouranswersforuseinresearch
+oncomputerunderstandingofEnglish. Thankyouforyourhelp!
+Wewillpresentyouwithapromptsentenceandaquestion. Thequestionwilleitherbeabout
+whatcausedthesituationdescribedintheprompt,orwhatapossibleeffectofthatsituationis.
+Wewillalsogiveyoutwopossibleanswerstothisquestion. Yourjobistodecide,giventhe
+situationdescribedintheprompt,whichofthetwooptionsisamoreplausibleanswertothe
+question:
+Inthefollowingexample,option1.isamoreplausibleanswertothequestionaboutwhatcaused
+thesituationdescribedintheprompt,
+Thegirlreceivedatrophy.
+What’stheCAUSEforthis?
+1. Shewonaspellingbee.
+2. Shemadeanewfriend.
+Inthefollowingexample,option2.isamoreplausibleanswerthequestionaboutwhathappened
+becauseofthesituationdescribedintheprompt,
+Thepoliceaimedtheirweaponsatthefugitive.
+WhathappenedasaRESULT?
+1. Thefugitivefelltotheground.
+2. Thefugitivedroppedhisgun.
+Ifyouhaveanymorequestions,pleaserefertoourFAQpage.
+19
+Table7: Task-specificinstructionsforCommitmentBank. Theseinstructionswereprovidedduring
+bothtrainingandannotationphases.
+SpeakerCommitmentInstructions
+TheNewYorkUniversityCenterforDataScienceiscollectingyouranswersforuseinresearch
+oncomputerunderstandingofEnglish. Thankyouforyourhelp!
+Wewillpresentyouwithaprompttakenfromapieceofdialogue,thiscouldbeasinglesentence,
+afewsentences,orashortexchangebetweenpeople. Yourjobistofigureout,basedonthis
+firstprompt(ontop),howcertainthespeakerisaboutthetruthfulnessofthesecondprompt
+(onthebottom). Youcanchoosefroma7pointscalerangingfrom(1)completelycertainthat
+thesecondpromptistrueto(7)completelycertainthatthesecondpromptisfalse. Hereare
+examplesforafewofthelabels:
+Choose1(certainthatitistrue)ifthespeakerfromthefirstpromptdefinitelybelievesorknows
+thatthesecondpromptistrue. Forexample,
+"WhatfuntohearArtemislaugh. She’ssuchaseriouschild. Ididn’tknow
+shehadasenseofhumor."
+"Artemishadasenseofhumor"
+Choose4(notcertainifitistrueorfalse)ifthespeakerfromthefirstpromptisuncertainifthe
+secondpromptistrueorfalse. Forexample,
+"Tessiscommittedtotrack. She’salwaystrainedwithallherheartandsoul.
+Onecanonlyhopethatshehasrecoveredfromthefluandwillcrossthefinish
+line."
+"Tesscrossedthefinishline."
+Choose7(certainthatitisfalse)ifthespeakerfromthefirstpromptdefinitelybelievesorknows
+thatthesecondpromptisfalse. Forexample,
+"DidyouhearaboutOlivia’schemistrytest? Shestudiedreallyhard. But
+evenafterputtinginallthattimeandenergy,shedidn’tmanagetopassthe
+test".
+"Oliviapassedthetest."
+Ifyouhaveanymorequestions,pleaserefertoourFAQpage.
+20
+Table8: Task-specificinstructionsforWinogradSchemaChallenge(WSC).Theseinstructionswere
+providedduringbothtrainingandannotationphases.
+WinogradSchemaInstructions
+TheNewYorkUniversityCenterforDataScienceiscollectingyouranswersforuseinresearch
+oncomputerunderstandingofEnglish. Thankyouforyourhelp!
+Wewillpresentyouwithasentencethatsomeonewrote,withoneboldedpronoun. Wewillthen
+askifyouifthepronounreferstoaspecificwordorphraseinthesentence. Yourjobistofigure
+out,basedonthesentence,iftheboldedpronounreferstothisselectedwordorphrase:
+ChooseYesifthepronounreferstotheselectedwordorphrase. Forexample,
+"Iputthecakeawayintherefrigerator. Ithasalotofbutterinit."
+DoesItin"Ithasalot"refertocake?
+ChooseNoifthepronoundoesnotrefertotheselectedwordorphrase. Forexample,
+"The large ball crashed right through the table because it was made of
+styrofoam."
+Doesitin"itwasmade"refertoball?
+Ifyouhaveanymorequestions,pleaserefertoourFAQpage.
+21
+Table 9: Task-specific instructions for BoolQ (continued in Table 10). These instructions were
+providedduringbothtrainingandannotationphases.
+Question-AnsweringInstructions
+TheNewYorkUniversityCenterforDataScienceiscollectingyouranswersforuseinresearch
+oncomputerunderstandingofEnglish. Thankyouforyourhelp!
+WewillpresentyouwithapassagetakenfromaWikipediaarticleandarelevantquestion. Your
+jobistodecide,giventheinformationprovidedinthepassage,iftheanswertothequestionis
+YesorNo. Forexample,
+InthefollowingexamplesthecorrectanswerisYes,
+ThethirteenthseasonofCriminalMindswasorderedonApril7,2017,by
+CBSwithanorderof22episodes. TheseasonpremieredonSeptember27,
+2017inanewtimeslotat10:00PMonWednesdaywhenithadpreviously
+beenat9:00PMonWednesdaysinceitsinception. Theseasonconcludedon
+April18,2018withatwo-partseasonfinale.
+willtherebea13thseasonofcriminalminds?
+(Intheaboveexample,thefirstlineofthepassagesaysthatthe13thseasonof
+theshowwasordered.)
+As of 8 August 2016, the FDA extended its regulatory power to include e-
+cigarettes. UnderthisrulingtheFDAwillevaluatecertainissues,including
+ingredients,productfeaturesandhealthrisks,aswelltheirappealtominors
+and non-users. The FDA rule also bans access to minors. A photo ID is
+requiredtobuye-cigarettes,andtheirsaleinall-agesvendingmachinesisnot
+permitted. TheFDAinSeptember2016hassentwarninglettersforunlawful
+underagesalestoonlineretailersandretailersofe-cigarettes.
+isvapingillegalifyouareunder18?
+(Intheaboveexample,thepassagestatesthatthe"FDArulealsobansaccess
+to minors." The question uses the word "vaping," which is a synonym for
+e-cigrattes.)
+InthefollowingexamplesthecorrectanswerisNo,
+Badgers are short-legged omnivores in the family Mustelidae, which also
+includes the otters, polecats, weasels, and wolverines. They belong to the
+caniformsuborderofcarnivoranmammals. The11speciesofbadgersare
+groupedinthreesubfamilies: Melinae(Eurasianbadgers),Mellivorinae(the
+honeybadgerorratel),andTaxideinae(theAmericanbadger). TheAsiatic
+stinkbadgersofthegenusMydauswereformerlyincludedwithinMelinae
+(andthusMustelidae),butrecentgeneticevidenceindicatestheseareactually
+membersoftheskunkfamily,placingtheminthetaxonomicfamilyMephitidae.
+isawolverinethesameasabadger?
+(Intheaboveexample,thepassagesaysthatbadgersandwolverinesarein
+thesamefamily,Mustelidae,whichdoesnotmeantheyarethesameanimal.)
+22
+Table10: ContinuationfromTable9oftask-specificinstructionsforBoolQ.Theseinstructionswere
+providedduringbothtrainingandannotationphases.
+Morefamously, Harley-Davidsonattemptedtoregisterasatrademarkthe
+distinctive“chug”ofaHarley-Davidsonmotorcycleengine. OnFebruary
+1, 1994, the company filed its application with the following description:
+“Themarkconsistsoftheexhaustsoundofapplicant’smotorcycles,produced
+byV-twin,commoncrankpinmotorcycleengineswhenthegoodsareinuse.”
+NineofHarley-Davidson’scompetitorsfiledoppositionsagainsttheapplica-
+tion,arguingthatcruiser-stylemotorcyclesofvariousbrandsusethesame
+crankpinV-twinenginewhichproducesthesamesound. Aftersixyearsof
+litigation,withnoendinsight,inearly2000,Harley-Davidsonwithdrewtheir
+application.
+doesharleydavidsonhaveapatentontheirsound?
+(Intheaboveexample,thepassagestatesthatHarley-Davidsonappliedfora
+patentbutthenwithdrew,sotheydonothaveapatentonthesound.)
+Ifyouhaveanymorequestions,pleaserefertoourFAQpage.
+23
+Table 11: Task-specific instructions for the diagnostic and the bias diagnostic datasets. These
+instructionswereprovidedduringbothtrainingandannotationphases.
+TextualEntailmentInstructions
+TheNewYorkUniversityCenterforDataScienceiscollectingyouranswersforuseinresearch
+oncomputerunderstandingofEnglish. Thankyouforyourhelp!
+Wewillpresentyouwithaprompttakenfromanarticlesomeonewrote.Yourjobistofigureout,
+basedonthiscorrectprompt(thefirstprompt,ontop),ifanotherprompt(thesecondprompt,on
+bottom)isalsonecessarilytrue:
+ChooseTrueiftheeventorsituationdescribedbythefirstpromptdefinitelyimpliesthatthe
+secondprompt,onbottom,mustalsobetrue. Forexample,
+• "MurphyrecentlydecidedtomovetoLondon."
+"MurphyrecentlydecidedtomovetoEngland."
+(TheaboveexampleisTruebecauseLondonisinEnglandandthereforeprompt2is
+clearlyimpliedbyprompt1.)
+• "RussiancosmonautValeryPolyakovsettherecordforthelongestcontinuousamount
+oftimespentinspace,astaggering438days,between1994and1995."
+"Russiansholdrecordforlongeststayinspace."
+(TheaboveexampleisTruebecausetheinformationinthesecondpromptiscontained
+inthefirstprompt: ValeryisRussianandshesettherecordforlongeststayinspace.)
+• "Shedoesnotdisgreewithherbrother’sopinion,butshebelieveshe’stooaggresivein
+hisdefense"
+"She agrees with her brother’s opinion, but she believes he’s too aggresive in his
+defense"
+(TheaboveexampleisTruebecausethesecondpromptisanexactparaphraseofthe
+firstprompt,withexactlythesamemeaning.)
+ChooseFalseiftheeventorsituationdescribedwiththefirstpromptontopdoesnotnecessarily
+implythatthissecondpromptmustalsobetrue. Forexample,
+• "ThismethodwasdevelopedatColumbiaandappliedtodataprocessingatCERN."
+"ThismethodwasdevelopedatColumbiaandappliedtodataprocessingatCERN
+withlimitedsuccess."
+(TheaboveexampleisFalsebecausethesecondpromptisintroducingnewinformation
+notimpliedinthefirstprompt: Thefirstpromptdoesnotgiveusanyknowledgeof
+howsuccesfultheapplicationofthemethodatCERNwas.)
+• "Thisbuildingisverytall."
+"ThisisthetallestbuildinginNewYork."
+(TheaboveexampleisFalsebecauseabuildingbeingtalldoesnotmeanitmustbethe
+tallestbuilding,northatitisinNewYork.)
+• "Hoursearlier,YasserArafatcalledforanendtoattacksagainstIsraeliciviliansin
+thetwoweeksbeforeIsraelielections."
+"ArafatcondemnedsuicidebombattacksinsideIsrael."
+(TheaboveexampleisFalsebecausefromthefirstpromptweonlyknowthatArafat
+calledforanendtoattacksagainstIsraelicitizens,wedonotknowwhatkindofattacks
+hemayhavebeencondemning.)
+Youdonothavetoworryaboutwhetherthewritingstyleismaintainedbetweenthetwoprompts.
+Ifyouhaveanymorequestions,pleaserefertoourFAQpage.
+24
+Table12: Task-specificinstructionsfortheGenderedAmbiguousPronounCoreference(GAP)task.
+Theseinstructionswereprovidedduringbothtrainingandannotationphases.
+GAPInstructions
+TheNewYorkUniversityCenterforDataScienceiscollectingyouranswersforuseinresearch
+oncomputerunderstandingofEnglish. Thankyouforyourhelp!
+WewillpresentyouwithanextractfromaWikipediaarticle,withoneboldedpronoun. Wewill
+alsogiveyoutwonamesfromthetextthatthispronouncouldreferto. Yourjobistofigureout,
+basedontheextract,ifthepronounreferstooptionA,optionsB,orneither:
+ChooseAifthepronounreferstooptionA.Forexample,
+"In 2010 Ella Kabambe was not the official Miss Malawi; this was Faith
+Chibale, but Kabambe represented the country in the Miss World pageant.
+Atthe2012MissWorld,SusanMteghapushedMissNewZealand,Collette
+Lochore,duringtheopeningheadshotofthepageant,claimingthatMissNew
+Zealandwasinherspace."
+DoesherrefertooptionAorBbelow?
+A SusanMtegha
+B ColletteLochore
+C Neither
+ChooseBifthepronounreferstooptionB.Forexample,
+"In1650hestartedhiscareerasadvisorintheministeriumoffinancesinDen
+Haag. AfterhebecameaministerhewentbacktoAmsterdam,andtookplace
+asasortofchairingmayorofthiscity. AfterthedeathofhisbrotherCornelis,
+DeGraeffbecamethestrongleaderoftherepublicans. Heheldthisposition
+untiltherampjaar."
+DoesHerefertooptionAorBbelow?
+A Cornelis
+B DeGraeff
+C Neither
+ChooseCifthepronounreferstoneitheroption. Forexample,
+"Reb Chaim Yaakov’s wife is the sister of Rabbi Moishe Sternbuch, as is
+thewifeofRabbiMeshulamDovidSoloveitchik,makingthetwoRabbishis
+uncles. RebAsher’sbrotherRabbiShlomoArieliistheauthorofacritical
+editionofthenovallaeofRabbiAkivaEiger.Beforehismarriage,RabbiArieli
+studiedinthePonevezhYeshivaheadedbyRabbiShmuelRozovsky,andhe
+laterstudiedunderhisfather-in-lawintheMirrerYeshiva."
+DoeshisrefertooptionAorBbelow?
+A RebAsher
+B AkivaEiger
+C Neither
+Ifyouhaveanymorequestions,pleaserefertoourFAQpage.
+25
+Table13: Task-specificinstructionsfortheParaphraseAdversariesfromWordScrambling(PAWS)
+task. Theseinstructionswereprovidedduringbothtrainingandannotationphases.
+ParaphraseDetectionInstructions
+TheNewYorkUniversityCenterforDataScienceiscollectingyouranswersforuseinresearch
+oncomputerunderstandingofEnglish. Thankyouforyourhelp!
+WewillpresentyouwithtwosimilarsentencestakenfromWikipediaarticles. Yourjobisto
+figureoutifthesetwosentencesareparaphrasesofeachother,andconveyexactlythesame
+meaning:
+ChooseYesifthesentencesareparaphrasesandhavetheexactsamemeaning. Forexample,
+"HastingsNdlovuwasburiedwithHectorPietersonatAvalonCemeteryin
+Johannesburg."
+"HastingsNdlovu,togetherwithHectorPieterson,wasburiedattheAvalon
+cemeteryinJohannesburg."
+"ThecomplexoftheTrabzonWorldTradeCenterisclosetoTrabzonAirport
+."
+"The complex of World Trade Center Trabzon is situated close to Trabzon
+Airport."
+Choose No if the two sentences are not exact paraphrases and mean different things. For
+example,
+"She was only a few months in French service when she met some British
+frigatesin1809."
+"She was only in British service for a few months , when in 1809 , she
+encounteredsomeFrenchfrigates."
+"This work caused him to trigger important reflections on the practices of
+molecular genetics and genomics at a time when this was not considered
+ethical."
+"Thisworkledhimtotriggerethicalreflectionsonthepracticesofmolecular
+geneticsandgenomicsatatimewhenthiswasnotconsideredimportant."
+Ifyouhaveanymorequestions,pleaserefertoourFAQpage.
+26
+Table14: Task-specificinstructionsfortheQuoraInsincereQuestionstask. Theseinstructionswere
+providedduringbothtrainingandannotationphases.
+InsincereQuestionsInstructions
+TheNewYorkUniversityCenterforDataScienceiscollectingyouranswersforuseinresearch
+oncomputerunderstandingofEnglish. Thankyouforyourhelp!
+WewillpresentyouwithaquestionthatsomeonepostedonQuora. Yourjobistofigureout
+whetherornotthisisasincerequestion. Aninsincerequestionisdefinedasaquestionintended
+tomakeastatementratherthanlookforhelpfulanswers. Somecharacteristicsthatcansignify
+thataquestionisinsincere:
+• Hasanon-neutraltone
+– Hasanexaggeratedtonetounderscoreapointaboutagroupofpeople
+– Isrhetoricalandmeanttoimplyastatementaboutagroupofpeople
+• Isdisparagingorinflammatory
+– Suggests a discriminatory idea against a protected class of people, or seeks
+confirmationofastereotype
+– Makesdisparagingattacks/insultsagainstaspecificpersonorgroupofpeople
+– Basedonanoutlandishpremiseaboutagroupofpeople
+– Disparagesagainstacharacteristicthatisnotfixableandnotmeasurable
+• Isn’tgroundedinreality
+– Basedonfalseinformation,orcontainsabsurdassumptions
+– Usessexualcontent(incest,bestiality,pedophilia)forshockvalue,andnottoseek
+genuineanswers
+Pleasenotethattherearefarfewerinsincerequestionsthantherearesincerequestions! Soyou
+shouldexpecttolabelmostquestionsassincere.
+Examples,
+ChooseSincereifyoubelievethepersonaskingthequestionwasgenuinelyseekingananswer
+fromtheforum. Forexample,
+"HowdoDNAandRNAcompareandcontrast?"
+"Arethereanysportsthatyoudon’tlike?"
+"Whatisthemainpurposeofpenance?"
+ChooseInsincereifyoubelievethepersonaskingthequestionwasnotreallyseekingananswer
+butwasbeinginflammatory,extremelyrhetorical,orabsurd. Forexample,
+"HowdoIsellPakistan? IneedlotsofmoneysoIdecidedtosellPakistan
+anyonewannabuy?"
+"IfHispanicsaresoproudoftheircountries,whydotheymoveout?"
+"WhyChinesepeoplearealwaysnotwelcomeinallcountries?"
+Ifyouhaveanymorequestions,pleaserefertoourFAQpage.
+27
+Table15: Task-specificinstructionsfortheUltrafineEntityTypingtask. Theseinstructionswere
+providedduringbothtrainingandannotationphases.
+EntityTypingInstructions
+TheNewYorkUniversityCenterforDataScienceiscollectingyouranswersforuseinresearch
+oncomputerunderstandingofEnglish. Thankyouforyourhelp!
+Wewillprovideyouwithasentencewithonboldedwordorphrase. Wewillalsogiveyoua
+possibletagforthisboldedwordorphrase. Yourjobistodecide,inthecontextofthesentence,
+ifthistagiscorrectandapplicabletotheboldedwordorphrase:
+ChooseYesifthetagisapplicableandaccuratelydescribestheselectedwordorphrase. For
+example,
+“Spainwasthegoldline."Itstartedoutwithzerogoldin1937,andby1945
+ithad65.5tons.
+Tag: nation
+ChooseNoifthetagisnotapplicableanddoesnotdescribestheselectedwordorphrase. For
+example,
+IraqimuseumworkersarestartingtoassessthedamagetoIraq’shistory.
+Tag: organism
+Ifyouhaveanymorequestions,pleaserefertoourFAQpage.
+28
+Table 16: Task-specific instructions for the Empathetic Reaction task. These instructions were
+providedduringbothtrainingandannotationphases.
+EmpathyandDistressAnalysisInstructions
+TheNewYorkUniversityCenterforDataScienceiscollectingyouranswersforuseinresearch
+oncomputerunderstandingofEnglish. Thankyouforyourhelp!
+Wewillpresentyouwithamessagesomeonewroteafterreadinganarticle. Yourjobistofigure
+out,basedonthismessage,howdisressedandempathetictheauthorwasfeeling. Empathyis
+definedasfeelingwarm,tender,sympathetic,moved,orcompassionate. Distressedisdefinedas
+feelingworried,upset,troubled,perturbed,grieved,distrubed,oralarmed.
+Examples,
+Theauthorofthefollowingmessagewasnotfeelingempatheticatallwithanempathyscoreof1,
+andwasverydistressedwithadistressscoreof7,
+"IreallyhateISIS.Theycontinuetobethestainonsocietybycommitting
+atrocitiescondemnedbyeverynationintheworld. Theymustbestoppedat
+allcostsandtheymustbedestroyedsothattheywonthurtanothersoul.These
+poorpeoplewhoaretryingtosurvivegetkilled,imprisoned,orbrainwashed
+intojoiningandthereseemstobenowaytostopthem."
+Theauthorofthefollowingmessageisfeelingveryempatheticwithanempathyscoreof7and
+alsoverydistressedwithadistressscoreof7,
+"AllofyouknowthatIlovebirds.Thisarticlewashardformetoreadbecause
+ofthat. Windturbinesarekillingalotofbirds,includingeagles. It’sreally
+verysad. Itmakesmefeelawful. Iamallforwindturbinesandrenewable
+sourcesofenergybecauseofglobalwarmingandcoal,butthisisawful. I
+don’twantthesepoorbirdstodielikethis. Readthisarticleandyou’llsee
+why."
+The author of the following message is feeling moderately empathetic with an
+empathyscoreof4andmoderatelydistressedwithadistressscoreof4,
+"Ijustreadanarticleaboutwildfiressendingasmokeyhazeacrossthestate
+neartheAppalachianmountains. Canyouimaginehowbigthefiremustbe
+tospreadsofarandwide? Andthepeopleintheareaobviouslysufferthe
+most. Whatifyouhaveasthmaorsomeotherconditionthatrestrictsyour
+breathing?"
+Theauthorofthefollowingmessageisfeelingveryempatheticwithanempathyscoreof7and
+mildlydistressedwithadistressscoreof2,
+"This is a very sad article. Being of of the first female fighter pilots must
+havegivenherandherfamilygreathonor. Ithinkthatthereshouldbemore
+trainingforallpilotswhodealintheseacrobaticflyingroutines. Ialsothink
+thatwomenhavejustasmuchofarighttobecomeafighterpilotasmen."
+Ifyouhaveanymorequestions,pleaserefertoourFAQpage.
+29

@@ -1,0 +1,961 @@
+PublishedasaconferencepaperatICLR2019
+GLUE: A MULTI-TASK BENCHMARK AND ANALYSIS
+PLATFORM FOR NATURAL LANGUAGE UNDERSTAND-
+ING
+AlexWang1,AmanpreetSingh1,JulianMichael2,FelixHill3,
+OmerLevy2&SamuelR.Bowman1
+1CourantInstituteofMathematicalSciences,NewYorkUniversity
+2PaulG.AllenSchoolofComputerScience&Engineering,UniversityofWashington
+3DeepMind
+{alexwang,amanpreet,bowman}@nyu.edu
+{julianjm,omerlevy}@cs.washington.edu
+felixhill@google.com
+ABSTRACT
+Fornaturallanguageunderstanding(NLU)technologytobemaximallyuseful,it
+must be able to process language in a way that is not exclusive to a single task,
+genre,ordataset. Inpursuitofthisobjective,weintroducetheGeneralLanguage
+Understanding Evaluation (GLUE) benchmark, a collection of tools for evaluat-
+ing the performance of models across a diverse set of existing NLU tasks. By
+includingtaskswithlimitedtrainingdata,GLUEisdesignedtofavorandencour-
+age models that share general linguistic knowledge across tasks. GLUE also in-
+cludesahand-crafteddiagnostictestsuitethatenablesdetailedlinguisticanalysis
+ofmodels. Weevaluatebaselinesbasedoncurrentmethodsfortransferandrep-
+resentation learning and find that multi-task training on all tasks performs better
+thantrainingaseparatemodelpertask. However, thelowabsoluteperformance
+ofourbestmodelindicatestheneedforimprovedgeneralNLUsystems.
+1 INTRODUCTION
+The human ability to understand language is general, flexible, and robust. In contrast, most NLU
+modelsabovethewordlevelaredesignedforaspecifictaskandstrugglewithout-of-domaindata.If
+weaspiretodevelopmodelswithunderstandingbeyondthedetectionofsuperficialcorrespondences
+between inputs and outputs, then it is critical to develop a more unified model that can learn to
+executearangeofdifferentlinguistictasksindifferentdomains.
+Tofacilitateresearchinthisdirection,wepresenttheGeneralLanguageUnderstandingEvaluation
+(GLUE) benchmark: a collection of NLU tasks including question answering, sentiment analysis,
+and textual entailment, and an associated online platform for model evaluation, comparison, and
+analysis. GLUEdoesnotplaceanyconstraintsonmodelarchitecturebeyondtheabilitytoprocess
+single-sentenceandsentence-pairinputsandtomakecorrespondingpredictions. ForsomeGLUE
+tasks,trainingdataisplentiful,butforothersitislimitedorfailstomatchthegenreofthetestset.
+GLUEthereforefavorsmodelsthatcanlearntorepresentlinguisticknowledgeinawaythatfacil-
+itatessample-efficientlearningandeffectiveknowledge-transferacrosstasks. Noneofthedatasets
+inGLUEwerecreatedfromscratchforthebenchmark;werelyonpreexistingdatasetsbecausethey
+have been implicitly agreed upon by the NLP community as challenging and interesting. Four of
+thedatasetsfeatureprivately-heldtestdata,whichwillbeusedtoensurethatthebenchmarkisused
+fairly.1
+To understand the types of knowledge learned by models and to encourage linguistic-meaningful
+solutionstrategies,GLUEalsoincludesasetofhand-craftedanalysisexamplesforprobingtrained
+models. Thisdatasetisdesignedtohighlightcommonchallenges,suchastheuseofworldknowl-
+edgeandlogicaloperators,thatweexpectmodelsmusthandletorobustlysolvethetasks.
+1Toevaluateontheprivatetestdata,usersofthebenchmarkmustsubmittogluebenchmark.com
+1
+9102
+beF
+22
+]LC.sc[
+3v16470.4081:viXra
+PublishedasaconferencepaperatICLR2019
+Corpus |Train| |Test| Task Metrics Domain
+Single-SentenceTasks
+CoLA 8.5k 1k acceptability Matthewscorr. misc.
+SST-2 67k 1.8k sentiment acc. moviereviews
+SimilarityandParaphraseTasks
+MRPC 3.7k 1.7k paraphrase acc./F1 news
+STS-B 7k 1.4k sentencesimilarity Pearson/Spearmancorr. misc.
+QQP 364k 391k paraphrase acc./F1 socialQAquestions
+InferenceTasks
+MNLI 393k 20k NLI matchedacc./mismatchedacc. misc.
+QNLI 105k 5.4k QA/NLI acc. Wikipedia
+RTE 2.5k 3k NLI acc. news,Wikipedia
+WNLI 634 146 coreference/NLI acc. fictionbooks
+Table1:Taskdescriptionsandstatistics. Alltasksaresinglesentenceorsentencepairclassification,
+exceptSTS-B,whichisaregressiontask. MNLIhasthreeclasses;allotherclassificationtaskshave
+two. Testsetsshowninbolduselabelsthathaveneverbeenmadepublicinanyform.
+TobetterunderstandthechallengedposedbyGLUE,weconductexperimentswithsimplebaselines
+andstate-of-the-artsentencerepresentationmodels. Wefindthatunifiedmulti-tasktrainedmodels
+slightlyoutperformcomparablemodelstrainedoneachtaskseparately. Ourbestmulti-taskmodel
+makesuseofELMo(Petersetal.,2018),arecentlyproposedpre-trainingtechnique. However,this
+modelstillachievesafairlylowabsolutescore. Analysiswithourdiagnosticdatasetrevealsthatour
+baselinemodelsdealwellwithstronglexicalsignalsbutstrugglewithdeeperlogicalstructure.
+Insummary,weoffer: (i)Asuiteofninesentenceorsentence-pairNLUtasks,builtonestablished
+annotated datasets and selected to cover a diverse range of text genres, dataset sizes, and degrees
+ofdifficulty. (ii)Anonlineevaluationplatformandleaderboard,basedprimarilyonprivately-held
+testdata. Theplatformismodel-agnostic,andcanevaluateanymethodcapableofproducingresults
+onallninetasks. (iii)Anexpert-constructeddiagnosticevaluationdataset. (iv)Baselineresultsfor
+severalmajorexistingapproachestosentencerepresentationlearning.
+2 RELATED WORK
+Collobertetal.(2011)usedamulti-taskmodelwithasharedsentenceunderstandingcomponentto
+jointly learn POS tagging, chunking, named entity recognition, and semantic role labeling. More
+recent work has explored using labels from core NLP tasks to supervise training of lower levels
+of deep neural networks (Søgaard & Goldberg, 2016; Hashimoto et al., 2017) and automatically
+learningcross-tasksharingmechanismsformulti-tasklearning(Ruderetal.,2017).
+Beyond multi-task learning, much work in developing general NLU systems has focused on
+sentence-to-vector encoders (Le & Mikolov, 2014; Kiros et al., 2015, i.a.), leveraging unlabeled
+data (Hill et al., 2016; Peters et al., 2018), labeled data (Conneau & Kiela, 2018; McCann et al.,
+2017), and combinations of these (Collobert et al., 2011; Subramanian et al., 2018). In this line
+ofwork,astandardevaluationpracticehasemerged,recentlycodifiedasSentEval(Conneauetal.,
+2017;Conneau&Kiela,2018). LikeGLUE,SentEvalreliesonasetofexistingclassificationtasks
+involving either one or two sentences as inputs. Unlike GLUE, SentEval only evaluates sentence-
+to-vector encoders, making it well-suited for evaluating models on tasks involving sentences in
+isolation. However, cross-sentence contextualization and alignment are instrumental in achieving
+state-of-the-artperformanceontaskssuchasmachinetranslation(Bahdanauetal.,2015;Vaswani
+et al., 2017), question answering (Seo et al., 2017), and natural language inference (Rockta¨schel
+etal.,2016).GLUEisdesignedtofacilitatethedevelopmentofthesemethods:Itismodel-agnostic,
+allowing for any kind of representation or contextualization, including models that use no explicit
+vectororsymbolicrepresentationsforsentenceswhatsoever.
+GLUEalsodivergesfromSentEvalintheselectionofevaluationtasksthatareincludedinthesuite.
+Many of the SentEval tasks are closely related to sentiment analysis, such as MR (Pang & Lee,
+2
+PublishedasaconferencepaperatICLR2019
+2005), SST (Socher et al., 2013), CR (Hu & Liu, 2004), and SUBJ (Pang & Lee, 2004). Other
+tasksaresoclosetobeingsolvedthatevaluationonthemisrelativelyuninformative,suchasMPQA
+(Wiebeetal.,2005)andTRECquestionclassification(Voorheesetal.,1999). InGLUE,weattempt
+toconstructabenchmarkthatisbothdiverseanddifficult.
+McCann et al. (2018) introduce decaNLP, which also scores NLP systems based on their perfor-
+mance on multiple datasets. Their benchmark recasts the ten evaluation tasks as question answer-
+ing,convertingtaskslikesummarizationandtext-to-SQLsemanticparsingintoquestionanswering
+usingautomatictransformations. Thatbenchmarklackstheleaderboardanderroranalysistoolkitof
+GLUE,butmoreimportantly,weseeitaspursuingamoreambitiousbutlessimmediatelypractical
+goal: While GLUE rewards methods that yield good performance on a circumscribed set of tasks
+using methods like those that are currently used for those tasks, their benchmark rewards systems
+thatmakeprogresstowardtheirgoalofunifyingallofNLUundertherubricofquestionanswering.
+3 TASKS
+GLUEiscenteredonnineEnglishsentenceunderstandingtasks,whichcoverabroadrangeofdo-
+mains,dataquantities,anddifficulties.AsthegoalofGLUEistospurdevelopmentofgeneralizable
+NLUsystems,wedesignthebenchmarksuchthatgoodperformanceshouldrequireamodeltoshare
+substantialknowledge(e.g.,trainedparameters)acrossalltasks,whilestillmaintainingsometask-
+specificcomponents. Thoughitispossibletotrainasinglemodelforeachtaskwithnopretraining
+orotheroutsidesourcesofknowledgeandevaluatetheresultingsetofmodelsonthisbenchmark,
+we expect that our inclusion of several data-scarce tasks will ultimately render this approach un-
+competitive. WedescribethetasksbelowandinTable1. AppendixAincludesadditionaldetails.
+Unlessotherwisementioned,tasksareevaluatedonaccuracyandarebalancedacrossclasses.
+3.1 SINGLE-SENTENCETASKS
+CoLA TheCorpusofLinguisticAcceptability(Warstadtetal.,2018)consistsofEnglishaccept-
+ability judgments drawn from books and journal articles on linguistic theory. Each example is a
+sequenceofwordsannotatedwithwhetheritisagrammaticalEnglishsentence. Followingtheau-
+thors, we use Matthews correlation coefficient (Matthews, 1975) as the evaluation metric, which
+evaluatesperformanceonunbalancedbinaryclassificationandrangesfrom-1to1,with0beingthe
+performance of uninformed guessing. We use the standard test set, for which we obtained private
+labelsfromtheauthors. Wereportasingleperformancenumberonthecombinationofthein-and
+out-of-domainsectionsofthetestset.
+SST-2 The Stanford Sentiment Treebank (Socher et al., 2013) consists of sentences from movie
+reviews and human annotations of their sentiment. The task is to predict the sentiment of a given
+sentence. Weusethetwo-way(positive/negative)classsplit,anduseonlysentence-levellabels.
+3.2 SIMILARITYANDPARAPHRASETASKS
+MRPC TheMicrosoftResearchParaphraseCorpus(Dolan&Brockett,2005)isacorpusofsen-
+tencepairsautomaticallyextractedfromonlinenewssources,withhumanannotationsforwhether
+the sentences in the pair are semantically equivalent. Because the classes are imbalanced (68%
+positive),wefollowcommonpracticeandreportbothaccuracyandF1score.
+QQP The Quora Question Pairs2 dataset is a collection of question pairs from the community
+question-answeringwebsiteQuora. Thetaskistodeterminewhetherapairofquestionsareseman-
+ticallyequivalent. AsinMRPC,theclassdistributioninQQPisunbalanced(63%negative),sowe
+reportbothaccuracyandF1score. Weusethestandardtestset,forwhichweobtainedprivatelabels
+fromtheauthors. Weobservethatthetestsethasadifferentlabeldistributionthanthetrainingset.
+STS-B TheSemanticTextualSimilarityBenchmark(Ceretal.,2017)isacollectionofsentence
+pairs drawn from news headlines, video and image captions, and natural language inference data.
+2data.quora.com/First-Quora-Dataset-Release-Question-Pairs
+3
+PublishedasaconferencepaperatICLR2019
+Coarse-GrainedCategories Fine-GrainedCategories
+LexicalEntailment,MorphologicalNegation,Factivity,
+LexicalSemantics
+Symmetry/Collectivity,Redundancy,NamedEntities,Quantifiers
+CoreArguments,PrepositionalPhrases,Ellipsis/Implicits,
+Predicate-ArgumentStructure Anaphora/CoreferenceActive/Passive,Nominalization,
+Genitives/Partitives,Datives,RelativeClauses,
+CoordinationScope,Intersectivity,Restrictivity
+Negation,DoubleNegation,Intervals/Numbers,Conjunction,Disjunction,
+Logic
+Conditionals,Universal,Existential,Temporal,UpwardMonotone,
+DownwardMonotone,Non-Monotone
+Knowledge CommonSense,WorldKnowledge
+Table2:Thetypesoflinguisticphenomenaannotatedinthediagnosticdataset,organizedunderfour
+majorcategories. Foradescriptionofeachphenomenon,seeAppendixE.
+Eachpairishuman-annotatedwithasimilarityscorefrom1to5;thetaskistopredictthesescores.
+Followcommonpractice,weevaluateusingPearsonandSpearmancorrelationcoefficients.
+3.3 INFERENCETASKS
+MNLI The Multi-Genre Natural Language Inference Corpus (Williams et al., 2018) is a crowd-
+sourcedcollectionofsentencepairswithtextualentailmentannotations. Givenapremisesentence
+andahypothesissentence,thetaskistopredictwhetherthepremiseentailsthehypothesis(entail-
+ment), contradicts the hypothesis (contradiction), or neither (neutral). The premise sentences are
+gatheredfromtendifferentsources, includingtranscribedspeech, fiction, andgovernmentreports.
+We use the standard test set, for which we obtained private labels from the authors, and evaluate
+onboththematched(in-domain)andmismatched(cross-domain)sections. Wealsouseandrecom-
+mendtheSNLIcorpus(Bowmanetal.,2015)as550kexamplesofauxiliarytrainingdata.
+QNLI TheStanfordQuestionAnsweringDataset(Rajpurkaretal.2016)isaquestion-answering
+datasetconsistingofquestion-paragraphpairs,whereoneofthesentencesintheparagraph(drawn
+fromWikipedia)containstheanswertothecorrespondingquestion(writtenbyanannotator). We
+convertthetaskintosentencepairclassificationbyformingapairbetweeneachquestionandeach
+sentenceinthecorrespondingcontext, andfilteringoutpairswithlowlexicaloverlapbetweenthe
+questionandthecontextsentence. Thetaskistodeterminewhetherthecontextsentencecontains
+theanswertothequestion. Thismodifiedversionoftheoriginaltaskremovestherequirementthat
+the model select the exact answer, but also removes the simplifying assumptions that the answer
+is always present in the input and that lexical overlap is a reliable cue. This process of recasting
+existing datasets into NLI is similar to methods introduced in White et al. (2017) and expanded
+uponinDemszkyetal.(2018). WecalltheconverteddatasetQNLI(Question-answeringNLI).3
+RTE The Recognizing Textual Entailment (RTE) datasets come from a series of annual textual
+entailment challenges. We combine the data from RTE1 (Dagan et al., 2006), RTE2 (Bar Haim
+etal.,2006),RTE3(Giampiccoloetal.,2007),andRTE5(Bentivoglietal.,2009).4 Examplesare
+constructed based onnews and Wikipedia text. We convert all datasets toa two-class split, where
+forthree-classdatasetswecollapseneutralandcontradictionintonot entailment,forconsistency.
+WNLI TheWinogradSchemaChallenge(Levesqueetal.,2011)isareadingcomprehensiontask
+inwhichasystemmustreadasentencewithapronounandselectthereferentofthatpronounfrom
+a list of choices. The examples are manually constructed to foil simple statistical methods: Each
+one is contingent on contextual information provided by a single word or phrase in the sentence.
+To convert the problem into sentence pair classification, we construct sentence pairs by replacing
+theambiguouspronounwitheachpossiblereferent. Thetaskistopredictifthesentencewiththe
+3AnearlierreleaseofQNLIhadanartifactwherethetaskcouldbemodeledandsolvedasaneasiertask
+thanwedescribehere.WehavesincereleasedanupdatedversionofQNLIthatremovesthispossibility.
+4RTE4isnotpubliclyavailable,whileRTE6andRTE7donotfitthestandardNLItask.
+4
+PublishedasaconferencepaperatICLR2019
+Tags Sentence1 Sentence2 Fwd Bwd
+Lexical Entailment (Lexi- The timing of the meeting The timing of the meet- N E
+cal Semantics), Downward has not been set, according ing has not been consid-
+Monotone(Logic) to a Starbucks spokesper- ered, according to a Star-
+son. bucksspokesperson.
+Universal Quantifiers Ourdeepestsympathiesare Ourdeepestsympathiesare E N
+(Logic) with all those affected by with a victim who was af-
+thisaccident. fectedbythisaccident.
+Quantifiers (Lexical Se- I have never seen a hum- I have never seen a hum- N E
+mantics), Double Negation mingbirdnotflying. mingbird.
+(Logic)
+Table 3: Examples from the diagnostic set. Fwd (resp. Bwd) denotes the label when sentence 1
+(resp. sentence 2) is the premise. Labels are entailment (E), neutral (N), or contradiction (C).
+Examplesaretaggedwiththephenomenatheydemonstrate,andeachphenomenonbelongstoone
+offourbroadcategories(inparentheses).
+pronounsubstitutedisentailedbytheoriginalsentence. Weuseasmallevaluationsetconsistingof
+new examples derived from fiction books5 that was shared privately by the authors of the original
+corpus. Whiletheincludedtrainingsetisbalancedbetweentwoclasses,thetestsetisimbalanced
+betweenthem(65%notentailment). Also,duetoadataquirk,thedevelopmentsetisadversarial:
+hypothesesaresometimessharedbetweentraininganddevelopmentexamples,soifamodelmem-
+orizes the training examples, they will predict the wrong label on corresponding development set
+example. As with QNLI, each example is evaluated separately, so there is not a systematic corre-
+spondencebetweenamodel’sscoreonthistaskanditsscoreontheunconvertedoriginaltask. We
+callconverteddatasetWNLI(WinogradNLI).
+3.4 EVALUATION
+The GLUE benchmark follows the same evaluation model as SemEval and Kaggle. To evaluate
+a system on the benchmark, one must run the system on the provided test data for the tasks, then
+uploadtheresultstothewebsitegluebenchmark.comforscoring. Thebenchmarksiteshows
+per-taskscoresandamacro-averageofthosescorestodetermineasystem’spositionontheleader-
+board. For tasks with multiple metrics (e.g., accuracy and F1), we use an unweighted average of
+themetricsasthescoreforthetaskwhencomputingtheoverallmacro-average. Thewebsitealso
+providesfine-andcoarse-grainedresultsonthediagnosticdataset. SeeAppendixDfordetails.
+4 DIAGNOSTIC DATASET
+Drawing inspiration from the FraCaS suite (Cooper et al., 1996) and the recent Build-It-Break-It
+competition(Ettingeretal.,2017),weincludeasmall,manually-curatedtestsetfortheanalysisof
+systemperformance. Whilethemainbenchmarkmostlyreflectsanapplication-drivendistribution
+of examples, our diagnostic dataset highlights a pre-defined set of phenomena that we believe are
+interestingandimportantformodelstocapture. WeshowthefullsetofphenomenainTable2.
+Each diagnostic example is an NLI sentence pair with tags for the phenomena demonstrated. The
+NLItaskiswell-suitedtothiskindofanalysis,asitcaneasilyevaluatethefullsetofskillsinvolved
+in (ungrounded) sentence understanding, from resolution of syntactic ambiguity to pragmatic rea-
+soningwithworldknowledge. Weensurethedataisreasonablydiversebyproducingexamplesfor
+a variety of linguistic phenomena and basing our examples on naturally-occurring sentences from
+severaldomains(news,Reddit,Wikipedia,academicpapers). Thisapproachesdiffersfromthatof
+FraCaS,whichwasdesignedtotestlinguistictheorieswithaminimalanduniformsetofexamples.
+AsamplefromourdatasetisshowninTable3.
+5See similar examples at cs.nyu.edu/faculty/davise/papers/WinogradSchemas/
+WS.html
+5
+PublishedasaconferencepaperatICLR2019
+AnnotationProcess Webeginwithatargetsetofphenomena,basedroughlyonthoseusedinthe
+FraCaSsuite(Cooperetal.,1996). Weconstructeachexamplebylocatingasentencethatcanbe
+easilymadetodemonstrateatargetphenomenon, andeditingitintwowaystoproduceanappro-
+priate sentencepair. We makeminimal modificationsso as tomaintain highlexical and structural
+overlap within each sentence pair and limit superficial cues. We then label the inference relation-
+shipsbetweenthesentences,consideringeachsentencealternativelyasthepremise,producingtwo
+labeledexamplesforeachpair(1100total). Wherepossible, weproduceseveralpairswithdiffer-
+entlabelsforasinglesourcesentence,tohaveminimalsetsofsentencepairsthatarelexicallyand
+structurally very similar but correspond to different entailment relationships. The resulting labels
+are42%entailment,35%neutral,and23%contradiction.
+Evaluation Sincetheclassdistributioninthediagnosticsetisnotbalanced,weuseR (Gorodkin,
+3
+2004),athree-classgeneralizationoftheMatthewscorrelationcoefficient,forevaluation.
+In light of recent work showing that crowdsourced data often contains artifacts which can be ex-
+ploitedtoperformwellwithoutsolvingtheintendedtask(Schwartzetal.,2017;Poliaketal.,2018;
+Tsuchiya,2018, i.a.),weauditthedataforsuchartifacts. WereproducethemethodologyofGuru-
+ranganetal.(2018),trainingtwofastTextclassifiers(Joulinetal.,2016)topredictentailmentlabels
+on SNLI and MNLI using only the hypothesis as input. The models respectively get near-chance
+accuraciesof32.7%and36.4%onourdiagnosticdata,showingthatthedatadoesnotsufferfrom
+suchartifacts.
+Toestablishhumanbaselineperformanceonthediagnosticset,wehavesixNLPresearchersanno-
+tate50sentencepairs(100entailmentexamples)randomlysampledfromthediagnosticset. Inter-
+annotatoragreementishigh,withaFleiss’sκof0.73. TheaverageR scoreamongtheannotators
+3
+is0.80,muchhigherthananyofthebaselinesystemsdescribedinSection5.
+IntendedUse Thediagnosticexamplesarehand-pickedtoaddresscertainphenomena, andNLI
+is a task with no natural input distribution, so we do not expect performance on the diagnostic set
+to reflect overall performance or generalization in downstream applications. Performance on the
+analysis set should be compared between models but not between categories. The set is provided
+not as a benchmark, but as an analysis tool for error analysis, qualitative model comparison, and
+developmentofadversarialexamples.
+5 BASELINES
+Forbaselines,weevaluateamulti-tasklearningmodeltrainedontheGLUEtasks,aswellasseveral
+variantsbasedonrecentpre-trainingmethods. Webrieflydescribethemhere. SeeAppendixBfor
+details. We implement our models in the AllenNLP library (Gardner et al., 2017). Original code
+forthebaselinesisavailableathttps://github.com/nyu-mll/GLUE-baselinesanda
+newerversionisavailableathttps://github.com/jsalt18-sentence-repl/jiant.
+Architecture Oursimplestbaselinearchitectureisbasedonsentence-to-vectorencoders,andsets
+aside GLUE’s ability to evaluate models with more complex structures. Taking inspiration from
+Conneauetal.(2017),themodelusesatwo-layer,1500D(perdirection)BiLSTMwithmaxpooling
+and 300D GloVe word embeddings (840B Common Crawl version; Pennington et al., 2014). For
+single-sentence tasks, we encode the sentence and pass the resulting vector to a classifier. For
+sentence-pairtasks,weencodesentencesindependentlytoproducevectorsu,v,andpass[u;v;|u−
+v|;u∗v]toaclassifier. TheclassifierisanMLPwitha512Dhiddenlayer.
+Wealsoconsideravariantofourmodelwhichforsentencepairtasksusesanattentionmechanism
+inspiredbySeoetal.(2017)betweenallpairsofwords, followedbyasecondBiLSTMwithmax
+pooling. By explicitly modeling the interaction between sentences, these models fall outside the
+sentence-to-vectorparadigm.
+Pre-Training Weaugmentourbasemodelwithtworecentmethodsforpre-training: ELMoand
+CoVe. Weuseexistingtrainedmodelsforboth.
+ELMo uses a pair of two-layer neural language models trained on the Billion Word Benchmark
+(Chelba et al., 2013). Each word is represented by a contextual embedding, produced by taking a
+6
+PublishedasaconferencepaperatICLR2019
+SingleSentence SimilarityandParaphrase NaturalLanguageInference
+Model Avg CoLA SST-2 MRPC QQP STS-B MNLI QNLI RTE WNLI
+Single-TaskTraining
+BiLSTM 63.9 15.7 85.9 69.3/79.4 81.7/61.4 66.0/62.8 70.3/70.8 75.7 52.8 65.1
++ELMo 66.4 35.0 90.2 69.0/80.8 85.7/65.6 64.0/60.2 72.9/73.4 71.7 50.1 65.1
++CoVe 64.0 14.5 88.5 73.4/81.4 83.3/59.4 67.2/64.1 64.5/64.8 75.4 53.5 65.1
++Attn 63.9 15.7 85.9 68.5/80.3 83.5/62.9 59.3/55.8 74.2/73.8 77.2 51.9 65.1
++Attn,ELMo 66.5 35.0 90.2 68.8/80.2 86.5/66.1 55.5/52.5 76.9/76.7 76.7 50.4 65.1
++Attn,CoVe 63.2 14.5 88.5 68.6/79.7 84.1/60.1 57.2/53.6 71.6/71.5 74.5 52.7 65.1
+Multi-TaskTraining
+BiLSTM 64.2 11.6 82.8 74.3/81.8 84.2/62.5 70.3/67.8 65.4/66.1 74.6 57.4 65.1
++ELMo 67.7 32.1 89.3 78.0/84.7 82.6/61.1 67.2/67.9 70.3/67.8 75.5 57.4 65.1
++CoVe 62.9 18.5 81.9 71.5/78.7 84.9/60.6 64.4/62.7 65.4/65.7 70.8 52.7 65.1
++Attn 65.6 18.6 83.0 76.2/83.9 82.4/60.1 72.8/70.5 67.6/68.3 74.3 58.4 65.1
++Attn,ELMo 70.0 33.6 90.4 78.0/84.4 84.3/63.1 74.2/72.3 74.1/74.5 79.8 58.9 65.1
++Attn,CoVe 63.1 8.3 80.7 71.8/80.0 83.4/60.5 69.8/68.4 68.1/68.6 72.9 56.0 65.1
+Pre-TrainedSentenceRepresentationModels
+CBoW 58.9 0.0 80.0 73.4/81.5 79.1/51.4 61.2/58.7 56.0/56.4 72.1 54.1 65.1
+Skip-Thought 61.3 0.0 81.8 71.7/80.8 82.2/56.4 71.8/69.7 62.9/62.8 72.9 53.1 65.1
+InferSent 63.9 4.5 85.1 74.1/81.2 81.7/59.1 75.9/75.3 66.1/65.7 72.7 58.0 65.1
+DisSent 62.0 4.9 83.7 74.1/81.7 82.6/59.5 66.1/64.8 58.7/59.1 73.9 56.4 65.1
+GenSen 66.2 7.7 83.1 76.6/83.0 82.9/59.8 79.3/79.2 71.4/71.3 78.6 59.2 65.1
+Table 4: Baseline performance on the GLUE task test sets. For MNLI, we report accuracy on the
+matchedandmismatchedtestsets. ForMRPCandQuora,wereportaccuracyandF1. ForSTS-B,
+we report Pearson and Spearman correlation. For CoLA, we report Matthews correlation. For all
+other tasks we report accuracy. All values are scaled by 100. A similar table is presented on the
+onlineplatform.
+linearcombinationofthecorrespondinghiddenstatesofeachlayerofthetwomodels. Wefollow
+theauthors’recommendations6anduseELMoembeddingsinplaceofanyotherembeddings.
+CoVe (McCann et al., 2017) uses a two-layer BiLSTM encoder originally trained for English-to-
+Germantranslation. TheCoVevectorofawordisthecorrespondinghiddenstateofthetop-layer
+LSTM.Asintheoriginalwork,weconcatenatetheCoVevectorstotheGloVewordembeddings.
+Training We train our models with the BiLSTM sentence encoder and post-attention BiLSTMs
+shared across tasks, and classifiers trained separately for each task. For each training update, we
+sample a task to train with a probability proportional to the number of training examples for each
+task. We train our models with Adam (Kingma & Ba, 2015) with initial learning rate 10−4 and
+batchsize128. Weusethemacro-averagescoreasthevalidationmetricandstoptrainingwhenthe
+learningratedropsbelow10−5orperformancedoesnotimproveafter5validationchecks.
+Wealsotrainasetofsingle-taskmodels,whichareconfiguredandtrainedidentically,butshareno
+parameters. Toallowforfaircomparisonswiththemulti-taskanalogs,wedonottuneparameteror
+trainingsettingsforeachtask,sothesesingle-taskmodelsdonotgenerallyrepresentthestateofthe
+artforeachtask.
+Sentence Representation Models Finally, we evaluate the following trained sentence-to-vector
+encoder models using our benchmark: average bag-of-words using GloVe embeddings (CBoW),
+Skip-Thought(Kirosetal.,2015),InferSent(Conneauetal.,2017),DisSent(Nieetal.,2017),and
+GenSen(Subramanianetal.,2018). Forthesemodels,weonlytraintask-specificclassifiersonthe
+representationstheyproduce.
+6github.com/allenai/allennlp/blob/master/tutorials/how to/elmo.md
+7
+PublishedasaconferencepaperatICLR2019
+Coarse-Grained Fine-Grained
+Model All LS PAS L K UQuant MNeg 2Neg Coref Restr Down
+Single-TaskTraining
+BiLSTM 21 25 24 16 16 70 53 4 21 -15 12
++ELMo 20 20 21 14 17 70 20 42 33 -26 -3
++CoVe 21 19 23 20 18 71 47 -1 33 -15 8
++Attn 25 24 30 20 14 50 47 21 38 -8 -3
++Attn,ELMo 28 30 35 23 14 85 20 42 33 -26 -3
++Attn,CoVe 24 29 29 18 12 77 50 1 18 -1 12
+Multi-TaskTraining
+BiLSTM 20 13 24 14 22 71 17 -8 31 -15 8
++ELMo 21 20 21 19 21 71 60 2 22 0 12
++CoVe 18 15 11 18 27 71 40 7 40 0 8
++Attn 18 13 24 11 16 71 1 -12 31 -15 8
++Attn,ELMo 22 18 26 13 19 70 27 5 31 -26 -3
++Attn,CoVe 18 16 25 16 13 71 26 -8 33 9 8
+Pre-TrainedSentenceRepresentationModels
+CBoW 9 6 13 5 10 3 0 13 28 -15 -11
+Skip-Thought 12 2 23 11 9 61 6 -2 30 -15 0
+InferSent 18 20 20 15 14 77 50 -20 15 -15 -9
+DisSent 16 16 19 13 15 70 43 -11 20 -36 -09
+GenSen 20 28 26 14 12 78 57 2 21 -15 12
+Table 5: Results on the diagnostic set. We report R coefficients between gold and predicted la-
+3
+bels,scaledby100. Thecoarse-grainedcategoriesareLexicalSemantics(LS),Predicate-Argument
+Structure(PAS),Logic(L),andKnowledgeandCommonSense(K).Ourexamplefine-grainedcate-
+goriesareUniversalQuantification(UQuant),MorphologicalNegation(MNeg),DoubleNegation
+(2Neg),Anaphora/Coreference(Coref),Restrictivity(Restr),andDownwardMonotone(Down).
+6 BENCHMARK RESULTS
+Wetrainthreerunsofeachmodelandevaluatetherunwiththebestmacro-averagedevelopmentset
+performance(seeTable6inAppendixC).Forsingle-taskandsentencerepresentationmodels, we
+evaluatethebestrunforeachindividualtask. Wepresentperformanceonthemainbenchmarktasks
+inTable4.
+Wefindthatmulti-tasktrainingyieldsbetteroverallscoresoversingle-tasktrainingamongstmodels
+using attention or ELMo. Attention generally has negligible or negative aggregate effect in single
+task training, but helps in multi-task training. We see a consistent improvement in using ELMo
+embeddings in place of GloVe or CoVe embeddings, particularly for single-sentence tasks. Using
+CoVehasmixedeffectsoverusingonlyGloVe.
+Amongthe pre-trainedsentence representationmodels, we observefairly consistentgains moving
+from CBoW to Skip-Thought to Infersent and GenSen. Relative to the models trained directly on
+theGLUEtasks,InferSentiscompetitiveandGenSenoutperformsallbutthetwobest.
+Lookingatresultspertask,wefindthatthesentencerepresentationmodelssubstantiallyunderper-
+formonCoLAcomparedtothemodelsdirectlytrainedonthetask. Ontheotherhand,forSTS-B,
+models trained directly on the task lag significantly behind the performance of the best sentence
+representationmodel. Finally,therearetasksforwhichnomodeldoesparticularlywell. OnWNLI,
+no model exceeds most-frequent-class guessing (65.1%) and we substitute the model predictions
+for the most-frequent baseline. On RTE and in aggregate, even our best baselines leave room for
+improvement. TheseearlyresultsindicatethatsolvingGLUEisbeyondthecapabilitiesofcurrent
+modelsandmethods.
+8
+PublishedasaconferencepaperatICLR2019
+7 ANALYSIS
+Weanalyzethebaselinesbyevaluatingeachmodel’sMNLIclassifieronthediagnosticsettogeta
+bettersenseoftheirlinguisticcapabilities. ResultsarepresentedinTable5.
+CoarseCategories Overallperformanceislowforallmodels: Thehighesttotalscoreof28still
+denotespoorabsoluteperformance. PerformancetendstobehigheronPredicate-ArgumentStruc-
+tureandloweronLogic,thoughnumbersarenotcloselycomparableacrosscategories. Unlikeon
+the main benchmark, the multi-task models are almost always outperformed by their single-task
+counterparts. Thisisperhapsunsurprising,sincewithoursimplemulti-tasktrainingregime,thereis
+likelysomedestructiveinterferencebetweenMNLIandtheothertasks. Themodelstrainedonthe
+GLUE tasks largely outperform the pretrained sentence representation models, with the exception
+ofGenSen. UsingattentionhasagreaterinfluenceondiagnosticscoresthanusingELMoorCoVe,
+whichwetaketoindicatethatattentionisespeciallyimportantforgeneralizationinNLI.
+Fine-GrainedSubcategories Mostmodelshandleuniversalquantificationrelativelywell. Look-
+ingatrelevantexamples, itseemsthatrelyingonlexicalcuessuchas“all”oftensufficesforgood
+performance. Similarly,lexicalcuesoftenprovidegoodsignalinmorphologicalnegationexamples.
+We observe varying weaknesses between models. Double negation is especially difficult for the
+GLUE-trainedmodelsthatonlyuseGloVeembeddings. ThisisamelioratedbyELMo,andtosome
+degree CoVe. Also, attention has mixed effects on overall results, and models with attention tend
+to struggle with downward monotonicity. Examining their predictions, we found that the models
+are sensitive to hypernym/hyponym substitution and word deletion as a signal of entailment, but
+predict it in the wrong direction (as if the substituted/deleted word were in an upward monotone
+context). This is consistent with recent findings by McCoy & Linzen (2019) that these systems
+usethesubsequencerelationbetweenpremiseandhypothesisasaheuristicshortcut. Restrictivity
+examples,whichoftendependonnuancesofquantifierscope,areespeciallydifficultforalmostall
+models.
+Overall,thereisevidencethatgoingbeyondsentence-to-vectorrepresentations,e.g. withanatten-
+tionmechanism,mightaidperformanceonout-of-domaindata,andthattransfermethodslikeELMo
+andCoVeencodelinguisticinformationspecifictotheirsupervisionsignal.However,increasedrep-
+resentationalcapacitymayleadtooverfitting,suchasthefailureofattentionmodelsindownward
+monotone contexts. We expect that our platform and diagnostic dataset will be useful for similar
+analyses in the future, so that model designers can better understand their models’ generalization
+behaviorandimplicitknowledge.
+8 CONCLUSION
+We introduce GLUE, a platform and collection of resources for evaluating and analyzing natural
+languageunderstandingsystems. Wefindthat,inaggregate,modelstrainedjointlyonourtaskssee
+betterperformancethanthecombinedperformanceofmodelstrainedforeachtaskseparately. We
+confirm the utility of attention mechanisms and transfer learning methods such as ELMo in NLU
+systems,whichcombinetooutperformthebestsentencerepresentationmodelsontheGLUEbench-
+mark,butstillleaveroomforimprovement.Whenevaluatingthesemodelsonourdiagnosticdataset,
+wefindthattheyfail(oftenspectacularly)onmanylinguisticphenomena, suggestingpossibleav-
+enuesforfuturework. Insum,thequestionofhowtodesigngeneral-purposeNLUmodelsremains
+unanswered,andwebelievethatGLUEcanprovidefertilesoilforaddressingthischallenge.
+ACKNOWLEDGMENTS
+WethankElliePavlick,TalLinzen,KyunghyunCho,andNikitaNangiafortheircommentsonthis
+work at its early stages, and we thank Ernie Davis, Alex Warstadt, and Quora’s Nikhil Dandekar
+andKornelCsernaiforprovidingaccesstoprivateevaluationdata. Thisprojecthasbenefitedfrom
+financial support to SB by Google, Tencent Holdings, and Samsung Research, and to AW from
+AdeptMindandanNSFGraduateResearchFellowship.
+9
+PublishedasaconferencepaperatICLR2019
+REFERENCES
+Dzmitry Bahdanau, Kyunghyun Cho, and Yoshua Bengio. Neural machine translation by jointly
+learningtoalignandtranslate. InProceedingsoftheInternationalConferenceonLearningRep-
+resentations,2015.
+Roy Bar Haim, Ido Dagan, Bill Dolan, Lisa Ferro, Danilo Giampiccolo, Bernardo Magnini, and
+IdanSzpektor. ThesecondPASCALrecognisingtextualentailmentchallenge. 2006.
+Luisa Bentivogli, Ido Dagan, Hoa Trang Dang, Danilo Giampiccolo, and Bernardo Magnini. The
+fifthPASCALrecognizingtextualentailmentchallenge. 2009.
+SamuelR.Bowman,GaborAngeli,ChristopherPotts,andChristopherD.Manning. Alargeanno-
+tated corpus for learning natural language inference. In Proceedings of the Conference on Em-
+pirical Methods in Natural Language Processing, pp. 632–642. Association for Computational
+Linguistics,2015.
+DanielCer,MonaDiab,EnekoAgirre,InigoLopez-Gazpio,andLuciaSpecia. Semeval-2017task
+1: Semantic textual similarity-multilingual and cross-lingual focused evaluation. In Eleventh
+InternationalWorkshoponSemanticEvaluations,2017.
+CiprianChelba,TomasMikolov,MikeSchuster,QiGe,ThorstenBrants,PhillippKoehn,andTony
+Robinson. Onebillionwordbenchmarkformeasuringprogressinstatisticallanguagemodeling.
+arXivpreprint1312.3005,2013.
+Ronan Collobert, Jason Weston, Le´on Bottou, Michael Karlen, Koray Kavukcuoglu, and Pavel
+Kuksa. Natural language processing (almost) from scratch. Journal of Machine Learning Re-
+search,12(Aug):2493–2537,2011.
+Alexis Conneau and Douwe Kiela. SentEval: An evaluation toolkit for universal sentence repre-
+sentations. InProceedingsoftheEleventhInternationalConferenceonLanguageResourcesand
+Evaluation,2018.
+Alexis Conneau, Douwe Kiela, Holger Schwenk, Lo¨ıc Barrault, and Antoine Bordes. Supervised
+learningofuniversalsentencerepresentationsfromnaturallanguageinferencedata. InProceed-
+ings of the Conference on Empirical Methods in Natural Language Processing, Copenhagen,
+Denmark,September9-11,2017,pp.681–691,2017.
+RobinCooper,DickCrouch,JanVanEijck,ChrisFox,JosefVanGenabith,JanJaspars,HansKamp,
+DavidMilward,ManfredPinkal,MassimoPoesio,StevePulman,TedBriscoe,HolgerMaier,and
+KarstenKonrad. Usingtheframework. Technicalreport,TheFraCaSConsortium,1996.
+Ido Dagan, Oren Glickman, and Bernardo Magnini. The PASCAL recognising textual entailment
+challenge. InMachinelearningchallenges.evaluatingpredictiveuncertainty,visualobjectclas-
+sification,andrecognisingtectualentailment,pp.177–190.Springer,2006.
+Dorottya Demszky, Kelvin Guu, and Percy Liang. Transforming question answering datasets into
+naturallanguageinferencedatasets. arXivpreprint1809.02922,2018.
+WilliamBDolanandChrisBrockett.Automaticallyconstructingacorpusofsententialparaphrases.
+InProceedingsoftheInternationalWorkshoponParaphrasing,2005.
+AllysonEttinger,SudhaRao,HalDaume´ III,andEmilyMBender. Towardslinguisticallygeneral-
+izableNLPsystems: Aworkshopandsharedtask. InFirstWorkshoponBuildingLinguistically
+GeneralizableNLPSystems,2017.
+MattGardner,JoelGrus,MarkNeumann,OyvindTafjord,PradeepDasigi,NelsonF.Liu,Matthew
+Peters,MichaelSchmitz,andLukeS.Zettlemoyer. AllenNLP:Adeepsemanticnaturallanguage
+processingplatform. 2017.
+DaniloGiampiccolo,BernardoMagnini,IdoDagan,andBillDolan.ThethirdPASCALrecognizing
+textualentailmentchallenge. InProceedingsoftheACL-PASCALworkshopontextualentailment
+andparaphrasing,pp.1–9.AssociationforComputationalLinguistics,2007.
+10
+PublishedasaconferencepaperatICLR2019
+JanGorodkin.Comparingtwok-categoryassignmentsbyak-categorycorrelationcoefficient.Com-
+put.Biol.Chem.,28(5-6):367–374,December2004. ISSN1476-9271.
+Suchin Gururangan, Swabha Swayamdipta, Omer Levy, Roy Schwartz, Samuel R. Bowman, and
+Noah A. Smith. Annotation artifacts in natural language inference data. In Proceedings of the
+North American Chapter of the Association for Computational Linguistics: Human Language
+Technologies,2018.
+KazumaHashimoto,CaimingXiong,YoshimasaTsuruoka,andRichardSocher. Ajointmany-task
+model: Growing a neural network for multiple nlp tasks. In Proceedings of the Conference on
+EmpiricalMethodsinNaturalLanguageProcessing,2017.
+FelixHill,KyunghyunCho,andAnnaKorhonen. Learningdistributedrepresentationsofsentences
+from unlabelled data. In Proceedings of the North American Chapter of the Association for
+ComputationalLinguistics: HumanLanguageTechnologies,2016.
+Minqing Hu and Bing Liu. Mining and summarizing customer reviews. In Proceedings of the
+tenth ACM SIGKDD International Conference on Knowledge Discovery and Data Mining, pp.
+168–177.ACM,2004.
+ArmandJoulin,EdouardGrave,PiotrBojanowski,andTomasMikolov. Bagoftricksforefficient
+textclassification. arXivpreprint1607.01759,2016.
+DiederikPKingmaandJimmyBa. Adam:Amethodforstochasticoptimization. InProceedingsof
+theInternationalConferenceonLearningRepresentations,2015.
+Ryan Kiros, Yukun Zhu, Ruslan R Salakhutdinov, Richard Zemel, Raquel Urtasun, Antonio Tor-
+ralba, and Sanja Fidler. Skip-Thought vectors. In Advances in Neural Information Processing
+Systems,pp.3294–3302,2015.
+Quoc Le and Tomas Mikolov. Distributed representations of sentences and documents. In Eric P.
+XingandTonyJebara(eds.),Proceedingsofthe31stInternationalConferenceonMachineLearn-
+ing, volume 32 of Proceedings of Machine Learning Research, pp. 1188–1196, Bejing, China,
+22–24Jun2014.PMLR.
+Hector J Levesque, Ernest Davis, and Leora Morgenstern. The Winograd schema challenge. In
+AAAI Spring Symposium: Logical Formalizations of Commonsense Reasoning, volume 46, pp.
+47,2011.
+Brian W Matthews. Comparison of the predicted and observed secondary structure of t4 phage
+lysozyme. BiochimicaetBiophysicaActa(BBA)-ProteinStructure,405(2):442–451,1975.
+Bryan McCann, James Bradbury, Caiming Xiong, and Richard Socher. Learned in translation:
+Contextualizedwordvectors. InAdvancesinNeuralInformationProcessingSystems,pp.6297–
+6308,2017.
+BryanMcCann,NitishShirishKeskar,CaimingXiong,andRichardSocher. Thenaturallanguage
+decathlon: Multitasklearningasquestionanswering. arXivpreprint1806.08730,2018.
+R.ThomasMcCoyandTalLinzen. Non-entailedsubsequencesasachallengefornaturallanguage
+inference. InProceedingsoftheSocietyforComputationinLinguistics,volume2,pp.357–360,
+2019.
+AllenNie,ErinDBennett,andNoahDGoodman. Dissent: Sentencerepresentationlearningfrom
+explicitdiscourserelations. arXivpreprint1710.04334,2017.
+BoPangandLillianLee. Asentimentaleducation: Sentimentanalysisusingsubjectivitysumma-
+rizationbasedonminimumcuts. InProceedingsofthe42ndAnnualMeetingonAssociationfor
+ComputationalLinguistics,pp.271.AssociationforComputationalLinguistics,2004.
+BoPangandLillianLee. Seeingstars: Exploitingclassrelationshipsforsentimentcategorization
+with respect to rating scales. In Proceedings of the 43rd Annual Meeting on Association for
+ComputationalLinguistics,pp.115–124.AssociationforComputationalLinguistics,2005.
+11
+PublishedasaconferencepaperatICLR2019
+Jeffrey Pennington, Richard Socher, and Christopher Manning. GloVe: Global vectors for word
+representation. In Proceedings of the Conference on Empirical Methods in Natural Language
+processing,pp.1532–1543,2014.
+MatthewEPeters,MarkNeumann,MohitIyyer,MattGardner,ChristopherClark,KentonLee,and
+LukeZettlemoyer. Deepcontextualizedwordrepresentations. InProceedingsoftheNorthAmer-
+icanChapteroftheAssociationforComputationalLinguistics: HumanLanguageTechnologies,
+2018.
+Adam Poliak, Jason Naradowsky, Aparajita Haldar, Rachel Rudinger, and Benjamin Van Durme.
+Hypothesisonlybaselinesinnaturallanguageinference. In*SEM@NAACL-HLT,2018.
+PranavRajpurkar,JianZhang,KonstantinLopyrev,andPercyLiang. SQuAD:100,000+questions
+formachinecomprehensionoftext. InProceedingsoftheConferenceonEmpiricalMethodsin
+NaturalLanguageProcessing,pp.2383–2392.AssociationforComputationalLinguistics,2016.
+TimRockta¨schel,EdwardGrefenstette,MoritzHermann,Karl,Toma´sˇKocˇisky`,andPhilBlunsom.
+Reasoningaboutentailmentwithneuralattention.InProceedingsoftheInternationalConference
+onLearningRepresentations,2016.
+Sebastian Ruder, Joachim Bingel, Isabelle Augenstein, and Anders Søgaard. Sluice networks:
+Learningwhattosharebetweenlooselyrelatedtasks. arXivpreprint1705.08142,2017.
+Roy Schwartz, Maarten Sap, Ioannis Konstas, Li Zilles, Yejin Choi, and Noah A. Smith. The
+effectofdifferentwritingtasksonlinguisticstyle: AcasestudyoftheROCstoryclozetask. In
+ProceedingsofCoNLL,2017.
+MinjoonSeo,AniruddhaKembhavi,AliFarhadi,andHannanehHajishirzi. Bidirectionalattention
+flow for machine comprehension. In Proceedings of the International Conference of Learning
+Representations,2017.
+RichardSocher,AlexPerelygin,JeanWu,JasonChuang,ChristopherDManning,AndrewNg,and
+Christopher Potts. Recursive deep models for semantic compositionality over a sentiment tree-
+bank. InProceedingsoftheConferenceonEmpiricalMethodsinNaturalLanguageProcessing,
+pp.1631–1642,2013.
+Anders Søgaard and Yoav Goldberg. Deep multi-task learning with low level tasks supervised at
+lower layers. In Proceedings of the 54th Annual Meeting of the Association for Computational
+Linguistics(Volume2: ShortPapers),volume2,pp.231–235,2016.
+Sandeep Subramanian, Adam Trischler, Yoshua Bengio, and Christopher J. Pal. Learning general
+purpose distributed sentence representations via large scale multi-task learning. In Proceedings
+oftheInternationalConferenceonLearningRepresentations,2018.
+MasatoshiTsuchiya. PerformanceImpactCausedbyHiddenBiasofTrainingDataforRecogniz-
+ing Textual Entailment. In Proceedings of the Eleventh International Conference on Language
+ResourcesandEvaluation(LREC2018),Miyazaki,Japan,May7-12,20182018.EuropeanLan-
+guageResourcesAssociation(ELRA).
+Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N Gomez,
+Łukasz Kaiser, and Illia Polosukhin. Attention is all you need. In Advances in Neural Infor-
+mationProcessingSystems,pp.6000–6010,2017.
+Ellen M Voorhees et al. The TREC-8 question answering track report. In TREC, volume 99, pp.
+77–82,1999.
+AlexWarstadt,AmanpreetSingh,andSamuelRBowman. Neuralnetworkacceptabilityjudgments.
+arXivpreprint1805.12471,2018.
+Aaron Steven White, Pushpendre Rastogi, Kevin Duh, and Benjamin Van Durme. Inference is
+everything: Recasting semantic resources into a unified evaluation framework. In Proceedings
+oftheEighthInternationalJointConferenceonNaturalLanguageProcessing(Volume1: Long
+Papers),volume1,pp.996–1005,2017.
+12
+PublishedasaconferencepaperatICLR2019
+SingleSentence SimilarityandParaphrase NaturalLanguageInference
+Model Avg CoLA SST-2 MRPC QQP STS-B MNLI QNLI RTE WNLI
+Single-TaskTraining
+BiLSTM 66.7 17.6 87.5 77.9/85.1 85.3/82.0 71.6/72.0 66.7 77.0 58.5 56.3
++ELMo 68.7 44.1 91.5 70.8/82.3 88.0/84.3 70.3/70.5 68.6 71.2 53.4 56.3
++CoVe 66.8 25.1 89.2 76.5/83.4 86.2/81.8 70.7/70.8 62.4 74.4 59.6 54.9
++Attn 66.9 17.6 87.5 72.8/82.9 87.7/83.9 66.6/66.7 70.0 77.2 58.5 60.6
++Attn,ELMo 67.9 44.1 91.5 71.1/82.1 87.8/83.6 57.9/56.1 72.4 75.2 52.7 56.3
++Attn,CoVe 65.6 25.1 89.2 72.8/82.4 86.1/81.3 59.4/58.0 67.9 72.5 58.1 57.7
+Multi-TaskTraining
+BiLSTM 60.0 18.6 82.3 75.0/82.7 84.4/79.3 69.0/66.9 65.6 74.9 59.9 9.9
++ELMo 63.1 26.4 90.9 80.2/86.7 84.2/79.7 72.9/71.5 67.4 76.0 55.6 14.1
++CoVe 59.3 9.8 82.0 73.8/81.0 83.4/76.6 64.5/61.9 65.5 70.4 52.7 32.4
++Attn 60.5 15.2 83.1 77.5/85.1 82.6/77.2 72.4/70.5 68.0 73.7 61.7 9.9
++Attn,ELMo 67.3 36.7 91.1 80.6/86.6 84.6/79.6 74.4/72.9 74.6 80.4 61.4 22.5
++Attn,CoVe 61.4 17.4 82.1 71.3/80.1 83.4/77.7 68.6/66.7 68.2 73.2 58.5 29.6
+Pre-TrainedSentenceRepresentationModels
+CBoW 61.4 4.6 79.5 75.0/83.7 75.0/65.5 70.6/71.1 57.1 62.5 71.9 56.3
+Skip-Thought 61.8 0.0 82.0 76.2/84.3 78.9/70.7 74.8/74.8 63.4 58.5 73.4 49.3
+InferSent 65.7 8.6 83.9 76.5/84.1 81.7/75.9 80.2/80.4 67.8 63.5 71.5 56.3
+DisSent 63.8 11.7 82.5 77.0/84.4 81.8/75.6 68.9/69.0 61.2 59.9 73.9 56.3
+GenSen 67.8 10.3 87.2 80.4/86.2 82.6/76.6 81.3/81.8 71.4 62.5 78.4 56.3
+Table6:BaselineperformanceontheGLUEtasks’developmentsets.ForMNLI,wereportaccuracy
+averagedoverthematchedandmismatchedtestsets. ForMRPCandQQP,wereportaccuracyand
+F1. For STS-B, we report Pearson and Spearman correlation. For CoLA, we report Matthews
+correlation. Forallothertaskswereportaccuracy. Allvaluesarescaledby100.
+Janyce Wiebe, Theresa Wilson, and Claire Cardie. Annotating expressions of opinions and emo-
+tions in language. In Proceedings of the International Conference on Language Resources and
+Evaluation,volume39,pp.165–210.Springer,2005.
+Adina Williams, Nikita Nangia, and Samuel R. Bowman. A broad-coverage challenge corpus for
+sentenceunderstandingthroughinference. InProceedingsoftheNorthAmericanChapterofthe
+AssociationforComputationalLinguistics: HumanLanguageTechnologies,2018.
+YukunZhu,RyanKiros,RichZemel,RuslanSalakhutdinov,RaquelUrtasun,AntonioTorralba,and
+Sanja Fidler. Aligning books and movies: Towards story-like visual explanations by watching
+moviesandreadingbooks. InProceedingsoftheInternationalConferenceonComputerVision,
+pp.19–27,2015.
+A ADDITIONAL BENCHMARK DETAILS
+QNLI To construct a balanced dataset, we select all pairs in which the most similar sentence to
+thequestionwasnottheanswersentence,aswellasanequalamountofcasesinwhichthecorrect
+sentencewasthemostsimilartothequestion,butanotherdistractingsentencewasaclosesecond.
+OursimilaritymetricisbasedonCBoWrepresentationswithpre-trainedGloVeembeddings. This
+approach to converting pre-existing datasets into NLI format is closely related to recent work by
+Whiteetal.(2017),aswellastotheoriginalmotivationfortextualentailmentpresentedbyDagan
+etal.(2006). BotharguethatmanyNLPtaskscanbeproductivelyreducedtotextualentailment.
+13
+PublishedasaconferencepaperatICLR2019
+B ADDITIONAL BASELINE DETAILS
+B.1 ATTENTIONMECHANISM
+We implement our attention mechanism as follows: given two sequences of hidden states
+u ,u ,...,u and v ,v ,...,v , we first compute matrix H where H = u · v . For each
+1 2 M 1 2 N ij i j
+u ,wegetattentionweightsα bytakingasoftmaxovertheith rowofH,andgetthecorrespond-
+i i
+(cid:80)
+ingcontextvectorv˜ = α v bytakingtheattention-weightedsumofthev . Wepassasecond
+i j ij j j
+BiLSTMwithmaxpoolingoverthesequence[u ;v˜ ],...[u ;v˜ ]toproduceu(cid:48). Weprocessthe
+1 1 M M
+v vectorsanalogouslytoobtainv(cid:48). Finally,wefeed[u(cid:48);v(cid:48);|u(cid:48)−v(cid:48)|;u(cid:48)∗v(cid:48)]intoaclassifier.
+j
+B.2 TRAINING
+WetrainourmodelswiththeBiLSTMsentenceencoderandpost-attentionBiLSTMssharedacross
+tasks, and classifiers trained separately for each task. For each training update, we sample a task
+totrainwithaprobabilityproportionaltothenumberoftrainingexamplesforeachtask. Wescale
+eachtask’slossinverselyproportionaltothenumberofexamplesforthattask,whichwefoundto
+improve overall performance. We train our models with Adam (Kingma & Ba, 2015) with initial
+learningrate10−3,batchsize128,andgradientclipping. Weusemacro-averagescoreoveralltasks
+asourvalidationmetric,andperformavalidationcheckevery10kupdates. Wedividethelearning
+rate by 5 whenever validation performance does not improve. We stop training when the learning
+ratedropsbelow10−5orperformancedoesnotimproveafter5validationchecks.
+B.3 SENTENCEREPRESENTATIONMODELS
+Weevaluatethefollowingsentencerepresentationmodels:
+1. CBoW,theaverageoftheGloVeembeddingsofthetokensinthesentence.
+2. Skip-Thought(Kirosetal.,2015),asequence-to-sequence(s)modeltrainedtogeneratethe
+previous and next sentences given the middle sentence. We use the original pre-trained
+model7trainedonsequencesofsentencesfromtheTorontoBookCorpus(Zhuetal.2015,
+TBC).
+3. InferSent(Conneauetal.,2017),aBiLSTMwithmax-poolingtrainedonMNLIandSNLI.
+4. DisSent (Nie et al., 2017), a BiLSTM with max-pooling trained to predict the discourse
+marker (because, so, etc.) relating two sentences on data derived from TBC. We use the
+varianttrainedforeight-wayclassification.
+5. GenSen(Subramanianetal.,2018),asequence-to-sequencemodeltrainedonavarietyof
+supervised and unsupervised objectives. We use the variant of the model trained on both
+MNLIandSNLI,theSkip-ThoughtobjectiveonTBC,andaconstituencyparsingobjective
+ontheBillionWordBenchmark.
+We train task-specific classifiers on top of frozen sentence encoders, using the default parameters
+fromSentEval. Seehttps://github.com/nyu-mll/SentEvalfordetailsandcode.
+C DEVELOPMENT SET RESULTS
+The GLUE website limits users to two submissions per day in order to avoid overfitting to the
+privatetestdata. ToprovideareferenceforfutureworkonGLUE,wepresentthebestdevelopment
+setresultsachievedbyourbaselinesinTable6.
+D BENCHMARK WEBSITE DETAILS
+GLUE’s online platform is built using React, Redux and TypeScript. We use Google Firebase for
+datastorageandGoogleCloudFunctionstohostandrunourgradingscriptwhenasubmissionis
+made. Figure1showsthevisualpresentationofourbaselinesontheleaderboard.
+7github.com/ryankiros/skip-thoughts
+14
+PublishedasaconferencepaperatICLR2019
+Figure 1: The benchmark website leaderboard. An expanded view shows additional details about
+eachsubmission,includingabriefprosedescriptionandparametercount.
+Category Count %Neutral %Contradiction %Entailment
+LexicalSemantics 368 31.0 27.2 41.8
+Predicate-ArgumentStructure 424 37.0 13.7 49.3
+Logic 364 37.6 26.9 35.4
+Knowledge 284 26.4 31.7 41.9
+Table7: Diagnosticdatasetstatisticsbycoarse-grainedcategory. Notethatsomeexamplesmaybe
+taggedwithphenomenabelongingtomultiplecategories.
+E ADDITIONAL DIAGNOSTIC DATA DETAILS
+Thedatasetisdesignedtoallowforanalyzingmanylevelsofnaturallanguageunderstanding,from
+wordmeaningandsentencestructuretohigh-levelreasoningandapplicationofworldknowledge.
+Tomakethiskindofanalysisfeasible,wefirstidentifyfourbroadcategoriesofphenomena:Lexical
+Semantics,Predicate-ArgumentStructure,Logic,andKnowledge. However,sincethesecategories
+arevague,wedivideeachintoalargersetoffine-grainedsubcategories. Descriptionsofallofthe
+fine-grainedcategoriesaregivenintheremainderofthissection. Thesecategoriesarejustonelens
+that can be used to understand linguistic phenomena and entailment, and there is certainly room
+to argue about how examples should be categorized, what the categories should be, etc. These
+categoriesarenotbasedonanyparticularlinguistictheory,butbroadlybasedonissuesthatlinguists
+haveoftenidentifiedandmodeledinthestudyofsyntaxandsemantics.
+The dataset is provided not as a benchmark, but as an analysis tool to paint in broad strokes the
+kinds of phenomena a model may or may not capture, and to provide a set of examples that can
+serve for error analysis, qualitative model comparison, and development of adversarial examples
+that expose a model’s weaknesses. Because the distribution of language is somewhat arbitrary, it
+willnotbehelpfultocompareperformanceofthesamemodelondifferentcategories. Rather,we
+recommendcomparingperformancethatdifferentmodelsscoreonthesamecategory,orusingthe
+reportedscoresasaguideforerroranalysis.
+Weshowcoarse-graincategorycountsandlabeldistributionsofthediagnosticsetinTable7.
+15
+PublishedasaconferencepaperatICLR2019
+E.1 LEXICALSEMANTICS
+Thesephenomenacenteronaspectsofwordmeaning.
+LexicalEntailment Entailmentcanbeappliednotonlyonthesentencelevel,butthewordlevel.
+For example, we say “dog” lexically entails “animal” because anything that is a dog is also an
+animal,and“dog”lexicallycontradicts“cat”becauseitisimpossibletobebothatonce. Thisrela-
+tionshipappliestomanytypesofwords(nouns,adjectives,verbs,manyprepositions,etc.) andthe
+relationshipbetweenlexicalandsententialentailmenthasbeendeeplyexplored,e.g.,insystemsof
+natural logic. This connection often hinges on monotonicity in language, so many Lexical Entail-
+mentexampleswillalsobetaggedwithoneoftheMonotonecategories,thoughwedonotdothis
+ineverycase(seeMonotonicity,underLogic).
+MorphologicalNegation Thisisaspecialcaseoflexicalcontradictionwhereonewordisderived
+from the other: from “affordable” to “unaffordable”, “agree” to “disagree”, etc. We also include
+exampleslike“ever”and“never”. WealsolabeltheseexampleswithNegationorDoubleNegation,
+sincetheycanbeviewedasinvolvingaword-levellogicalnegation.
+Factivity Propositionsappearinginasentencemaybeinanyentailmentrelationwiththesentence
+as a whole, depending on the context in which they appear. In many cases, this is determined by
+lexicaltriggers(usuallyverbsoradverbs)inthesentence. Forexample,
+• “IrecognizethatX”entails“X”.
+• “IdidnotrecognizethatX”entails“X”.
+• “IbelievethatX”doesnotentail“X”.
+• “IamrefusingtodoX”contradicts“IamdoingX”.
+• “IamnotrefusingtodoX”doesnotcontradict“IamdoingX”.
+• “IalmostfinishedX”contradicts“IfinishedX”.
+• “IbarelyfinishedX”entails“IfinishedX”.
+Constructions like “I recognize that X” are often called factive, since the entailment (of X above,
+regardedasapresupposition)persistsevenundernegation. Constructionslike“Iamrefusingtodo
+X” above are often called implicative, and are sensitive to negation. There are also cases where
+a sentence (non-)entails the existence of an entity mentioned in it, for example “I have found a
+unicorn”entails“Aunicornexists”while“Iamlookingforaunicorn”doesn’tnecessarilyentail“A
+unicorn exists”. Readings where the entity does not necessarily exist are often called intensional
+readings,sincetheyseemtodealwiththepropertiesdenotedbyadescription(itsintension)rather
+thanbeingreducibletothesetofentitiesthatmatchthedescription(itsextension,whichincasesof
+non-existencewillbeempty).
+We place all examples involving these phenomena under the label of Factivity. While it often de-
+pendsoncontexttodeterminewhetheranestedpropositionorexistenceofanentityisentailedby
+theoverallstatement,veryoftenitreliesheavilyonlexicaltriggers,soweplacethecategoryunder
+LexicalSemantics.
+Symmetry/Collectivity Somepropositionsdenotesymmetricrelations, whileothersdonot. For
+example, “John married Gary” entails “Gary married John” but “John likes Gary” does not entail
+“GarylikesJohn”.Symmetricrelationscanoftenberephrasedbycollectingbothargumentsintothe
+subject: “JohnmetGary”entails“JohnandGarymet”. Whetherarelationissymmetric,oradmits
+collectingitsargumentsintothesubject,isoftendeterminedbyitsheadword(e.g.,“like”,“marry”
+or“meet”),soweclassifyitunderLexicalSemantics.
+Redundancy Ifawordcanberemovedfromasentencewithoutchangingitsmeaning,thatmeans
+the word’s meaning was more-or-less adequately expressed by the sentence; so, identifying these
+casesreflectsanunderstandingofbothlexicalandsententialsemantics.
+16
+PublishedasaconferencepaperatICLR2019
+NamedEntities Wordsoftennameentitiesthatexistintheworld. Therearemanydifferentkinds
+of understanding we might wish to understand about these names, including their compositional
+structure(forexample,the“BaltimorePolice”isthesameasthe“PoliceoftheCityofBaltimore”)or
+theirreal-worldreferentsandacronymexpansions(forexample,“SNL”is“SaturdayNightLive”).
+This category is closely related to World Knowledge, but focuses on the semantics of names as
+lexicalitemsratherthanbackgroundknowledgeabouttheirdenotedentities.
+Quantifiers Logicalquantificationinnaturallanguageisoftenexpressedthroughlexicaltriggers
+such as “every”, “most”, “some”, and “no”. While we reserve the categories in Quantification
+andMonotonicityforentailmentsinvolvingoperationsonthesequantifiersandtheirarguments,we
+choosetoregardtheinterchangeabilityofquantifiers(e.g.,inmanycases“most”entails“many”)as
+aquestionoflexicalsemantics.
+E.2 PREDICATE-ARGUMENTSTRUCTURE
+Animportantcomponentofunderstandingthemeaningofasentenceisunderstandinghowitsparts
+arecomposedtogetherintoawhole. Inthiscategory,weaddressissuesacrossthatspectrum,from
+syntacticambiguitytosemanticrolesandcoreference.
+SyntacticAmbiguity: RelativeClauses,CoordinationScope Thesetwocategoriesdealpurely
+with resolving syntactic ambiguity. Relative clauses and coordination scope are both sources of a
+greatamountofambiguityinEnglish.
+Prepositionalphrases Prepositionalphraseattachmentisaparticularlydifficultproblemthatsyn-
+tacticparsersinNLPsystemscontinuetostrugglewith. Weviewitasaproblembothofsyntaxand
+semantics,sinceprepositionalphrasescanexpressawidevarietyofsemanticrolesandoftenseman-
+ticallyapplybeyondtheirdirectsyntacticattachment.
+Core Arguments Verbs select for particular arguments, particularly subjects and objects, which
+mightbeinterchangeabledependingonthecontextorthesurfaceform. Oneexampleistheergative
+alternation: “Jakebrokethevase”entails“thevasebroke”but“Jakebrokethevase”doesnotentail
+“Jakebroke”.Otherrearrangementsofcorearguments,suchasthoseseeninSymmetry/Collectivity,
+alsofallundertheCoreArgumentslabel.
+Alternations: Active/Passive, Genitives/Partitives, Nominalization, Datives All four of these
+categoriescorrespondtosyntacticalternationsthatareknowntofollowspecificpatternsinEnglish:
+• Active/Passive: “I saw him” is equivalent to “He was seen by me” and entails “He was
+seen”.
+• Genitives/Partitives: “theelephant’sfoot”isthesamethingas“thefootoftheelephant”.
+• Nominalization: “Icausedhimtosubmithisresignation”entails“Icausedthesubmission
+ofhisresignation”.
+• Datives:“Ibakedhimacake”entails“Ibakedacakeforhim”and“Ibakedacake”butnot
+“Ibakedhim”.
+Ellipsis/Implicits Often,theargumentofaverborotherpredicateisomitted(elided)inthetext,
+with the reader filling in the gap. We can construct entailment examples by explicitly filling in
+the gap with the correct or incorrect referents. For example, the premise “Putin is so entrenched
+withinRussiasrulingsystemthatmanyofitsmemberscanimaginenootherleader”entails“Putin
+issoentrenchedwithinRussiasrulingsystemthatmanyofitsmemberscanimaginenootherleader
+than Putin” and contradicts “Putin is so entrenched within Russias ruling system that many of its
+memberscanimaginenootherleaderthanthemselves.”
+This is often regarded as a special case of anaphora, but we decided to split out these cases from
+explicit anaphora, which is often also regarded as a case of coreference (and attempted to some
+degreeinmoderncoreferenceresolutionsystems).
+17
+PublishedasaconferencepaperatICLR2019
+Anaphora/Coreference Coreferencereferstowhenmultipleexpressionsrefertothesameentity
+orevent. ItiscloselyrelatedtoAnaphora,wherethemeaningofanexpressiondependsonanother
+(antecedent) expression in context. These two phenomena have significant overlap; for example,
+pronouns(“she”,“we”,“it”)areanaphorsthatareco-referentwiththeirantecedents. However,they
+alsomayoccurindependently,suchascoreferencebetweentwodefinitenounphrases(e.g.,“Theresa
+May”andthe“BritishPrimeMinister”)thatrefertothesameentity,oranaphorafromawordlike
+“other”whichrequiresanantecedenttodistinguishsomethingfrom.Inthiscategoryweonlyinclude
+cases where there is an explicit phrase (anaphoric or not) that is co-referent with an antecedent or
+otherphrase. WeconstructexamplesfortheseinmuchthesamewayasforEllipsis/Implicits.
+Intersectivity Many modifiers, especially adjectives, allow non-intersective uses, which affect
+theirentailmentbehavior. Forexample:
+• Intersective: “Heisaviolinistandanoldsurgeon”entails“Heisanoldviolinist”and“He
+isasurgeon”.
+• Non-intersective: “Heisaviolinistandaskilledsurgeon”doesnotentail“Heisaskilled
+violinist”.
+• Non-intersective: “Heisafakesurgeon”doesnotentail“Heisasurgeon”.
+Generally,anintersectiveuseofamodifier,like“old”in“oldmen”,isonewhichmaybeinterpreted
+asreferringtothesetofentitieswithbothproperties(theyareoldandtheyaremen).Linguistsoften
+formalizethisusingsetintersection,hencethename.
+IntersectivityisrelatedtoFactivity. Forexample,“fake”mayberegardedasacounter-implicative
+modifier, and these examples will be labeled as such. However, we choose to categorize intersec-
+tivityunderpredicate-argumentstructureratherthanlexicalsemantics,becausegenerallythesame
+wordwilladmitbothintersectiveandnon-intersectiveuses,soitmayberegardedasanambiguity
+ofargumentstructure.
+Restrictivity Restrictivityismostoftenusedtorefertoapropertyofusesofnounmodifiers. In
+particular, a restrictive use of a modifier is one that serves to identify the entity or entities being
+described, whereas a non-restrictive use adds extra details to the identified entity. The distinction
+canoftenbehighlightedbyentailments:
+• Restrictive:“Ifinishedallofmyhomeworkduetoday”doesnotentail“Ifinishedallofmy
+homework”.
+• Non-restrictive: “I got rid of all those pesky bedbugs” entails “I got rid of all those bed-
+bugs”.
+Modifiers that are commonly used non-restrictively are appositives, relative clauses starting with
+“which”or“who”,andexpletives(e.g. “pesky”). Non-restrictiveusescanappearinmanyforms.
+E.3 LOGIC
+Withanunderstandingofthestructureofasentence,thereisoftenabaselinesetofshallowconclu-
+sionsthatcanbedrawnusinglogicaloperatorsandoftenmodeledusingthemathematicaltoolsof
+logic.Indeed,thedevelopmentofmathematicallogicwasinitiallyguidedbyquestionsaboutnatural
+language meaning, from Aristotelian syllogisms to Fregean symbols. The notion of entailment is
+alsoborrowedfrommathematicallogic.
+PropositionalStructure: Negation,DoubleNegation,Conjunction,Disjunction,Conditionals
+Allofthebasicoperationsofpropositionallogicappearinnaturallanguage,andwetagthemwhere
+theyarerelevanttoourexamples:
+• Negation: “Thecatsatonthemat”contradicts“Thecatdidnotsitonthemat”.
+• Doublenegation: “Themarketisnotimpossibletonavigate”entails“Themarketispossi-
+bletonavigate”.
+18
+PublishedasaconferencepaperatICLR2019
+• Conjunction: “Temperatureandsnowconsistencymustbejustright”entails“Temperature
+mustbejustright”.
+• Disjunction: “Life is either a daring adventure or nothing at all” does not entail, but is
+entailedby,“Lifeisadaringadventure”.
+• Conditionals: “If both apply, they are essentially impossible” does not entail “They are
+essentiallyimpossible”.
+Conditionalsaremorecomplicatedbecausetheiruseinlanguagedoesnotalwaysmirrortheirmean-
+ing in logic. For example, they may be used at a higher level than the at-issue assertion: “If you
+thinkaboutit,it’stheperfectreversepsychologytactic”entails“It’stheperfectreversepsychology
+tactic”.
+Quantification: Universal, Existential Quantifiers are often triggered by words such as “all”,
+“some”,“many”,and“no”. Thereisarichbodyofworkmodelingtheirmeaninginmathematical
+logicwithgeneralizedquantifiers. Inthesetwocategories,wefocusonstraightforwardinferences
+fromthenaturallanguageanalogsofuniversalandexistentialquantification:
+• Universal: “Allparakeetshavetwowings”entails,butisnotentailedby,“Myparakeethas
+twowings”.
+• Existential: “Some parakeets have two wings” does not entail, but is entailed by, “My
+parakeethastwowings”.
+Monotonicity: Upward Monotone, Downward Monotone, Non-Monotone Monotonicity is a
+property of argument positions in certain logical systems. In general, it gives a way of deriving
+entailmentrelationsbetweenexpressionsthatdifferononlyonesubexpression. Inlanguage,itcan
+explainhowsomeentailmentspropagatethroughlogicaloperatorsandquantifiers.
+Forexample,“pet”entails“petsquirrel”,whichfurtherentails“happypetsquirrel”. Wecandemon-
+stratehowthequantifiers“a”,“no”and“exactlyone”differwithrespecttomonotonicity:
+• “Ihaveapetsquirrel”entails“Ihaveapet”,butnot“Ihaveahappypetsquirrel”.
+• “Ihavenopetsquirrels”doesnotentail“Ihavenopets”,butdoesentail“Ihavenohappy
+petsquirrels”.
+• “Ihaveexactlyonepetsquirrel”entailsneither“Ihaveexactlyonepet”nor“Ihaveexactly
+onehappypetsquirrel”.
+Inalloftheseexamples,“petsquirrel”appearsinwhatwecalltherestrictorpositionofthequantifier.
+Wesay:
+• “a”isupwardmonotoneinitsrestrictor:anentailmentintherestrictoryieldsanentailment
+ofthewholestatement.
+• “no” is downward monotone in its restrictor: an entailment in the restrictor yields an en-
+tailmentofthewholestatementintheoppositedirection.
+• “exactly one” is non-monotone in its restrictor: entailments in the restrictor do not yield
+entailmentsofthewholestatement.
+In this way, entailments between sentences that are built off of entailments of sub-phrases almost
+always rely on monotonicity judgments; see, for example, Lexical Entailment. However, because
+this is such a general class of sentence pairs, to keep the Logic category meaningful we do not
+alwaystagtheseexampleswithmonotonicity.
+Richer Logical Structure: Intervals/Numbers, Temporal Some higher-level facets of reason-
+inghavebeentraditionallymodeledusinglogic,suchasactualmathematicalreasoning(entailments
+basedoffofnumbers)andtemporalreasoning(whichisoftenmodeledasreasoningaboutamathe-
+maticaltimeline).
+• Intervals/Numbers: “Ihavehadmorethan2drinkstonight”entails“Ihavehadmorethan
+1drinktonight”.
+• Temporal: “MaryleftbeforeJohnentered”entails“JohnenteredafterMaryleft”.
+19
+PublishedasaconferencepaperatICLR2019
+E.4 KNOWLEDGE
+Strictly speaking, world knowledge and common sense are required on every level of language
+understanding for disambiguating word senses, syntactic structures, anaphora, and more. So our
+entiresuite(andanytestofentailment)doestestthesefeaturestosomedegree. However,inthese
+categories,wegatherexampleswheretheentailmentrestsnotonlyoncorrectdisambiguationofthe
+sentences,butalsoapplicationofextraknowledge,whetherconcreteknowledgeaboutworldaffairs
+ormorecommon-senseknowledgeaboutwordmeaningsorsocialorphysicaldynamics.
+WorldKnowledge Inthiscategorywefocusonknowledgethatcanclearlybeexpressedasfacts,
+aswellasbroaderandlesscommongeographical,legal,political,technical,orculturalknowledge.
+Examples:
+• “ThisisthemostonionyarticleI’veseenontheentireinternet”entails“Thisarticlereads
+likesatire”.
+• “Thereactionwasstronglyexothermic”entails“Thereactionmediagotveryhot”.
+• “ThereareamazinghikesaroundMt. Fuji”entails“ThereareamazinghikesinJapan”but
+not“ThereareamazinghikesinNepal”.
+CommonSense Inthiscategorywefocusonknowledgethatismoredifficulttoexpressasfacts
+and that we expect to be possessed by most people independent of cultural or educational back-
+ground. This includes a basic understanding of physical and social dynamics as well as lexical
+meaning(beyondsimplelexicalentailmentorlogicalrelations). Examples:
+• “TheannouncementofTillerson’sdeparturesentshockwavesacrosstheglobe”contradicts
+“PeopleacrosstheglobewerepreparedforTillerson’sdeparture”.
+• “MarcSimshasbeenseeinghisbarberonceaweek,forseveralyears”entails“MarcSims
+hasbeengettinghishaircutonceaweek,forseveralyears”.
+• “Hummingbirds are really attracted to bright orange and red (hence why the feeders are
+usuallythesecolours)”entails“Thefeedersareusuallycolouredsoastoattracthumming-
+birds”.
+20
